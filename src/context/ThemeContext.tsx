@@ -9,7 +9,7 @@ interface ThemeCtx {
 }
 
 const Ctx = createContext<ThemeCtx | null>(null);
-const KEY = "agrogestor:theme";
+const KEY = "Raizal:theme";
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {

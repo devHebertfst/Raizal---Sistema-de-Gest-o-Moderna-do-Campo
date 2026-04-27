@@ -23,14 +23,14 @@ interface AuthCtx {
 }
 
 const Ctx = createContext<AuthCtx | null>(null);
-const SESSION_KEY = "agrogestor:session";
-const USERS_KEY = "agrogestor:users";
+const SESSION_KEY = "Raizal:session";
+const USERS_KEY = "Raizal:users";
 
 const seedUsers: User[] = [
   {
     id: "u-admin",
     name: "Administrador",
-    email: "admin@agrogestor.com",
+    email: "admin@Raizal.com",
     password: "admin123",
     role: "admin",
     createdAt: new Date().toISOString(),
@@ -38,7 +38,7 @@ const seedUsers: User[] = [
   {
     id: "u-gestor",
     name: "João Marques",
-    email: "gestor@agrogestor.com",
+    email: "gestor@Raizal.com",
     password: "gestor123",
     role: "gestor",
     farm: "Fazenda Boa Vista",

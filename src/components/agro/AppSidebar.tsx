@@ -72,7 +72,7 @@ export function AppSidebar() {
           {!collapsed && (
             <div className="flex min-w-0 flex-col leading-tight">
               <span className="font-display text-base font-extrabold tracking-tight text-sidebar-accent-foreground">
-                AgroGestor
+                Raizal
               </span>
               <span className="mt-0.5 line-clamp-2 text-[10px] font-medium uppercase tracking-wider text-sidebar-foreground/70">
                 Gestão rural SaaS

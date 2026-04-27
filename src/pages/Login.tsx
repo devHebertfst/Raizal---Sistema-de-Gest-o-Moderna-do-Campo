@@ -12,8 +12,8 @@ import { cn } from "@/lib/utils";
 type Mode = "gestor" | "admin";
 
 const demoCreds: Record<Mode, { email: string; password: string; label: string }> = {
-  gestor: { email: "gestor@agrogestor.com", password: "gestor123", label: "Acesso de Gestor" },
-  admin: { email: "admin@agrogestor.com", password: "admin123", label: "Acesso de Administrador" },
+  gestor: { email: "gestor@Raizal.com", password: "gestor123", label: "Acesso de Gestor" },
+  admin: { email: "admin@Raizal.com", password: "admin123", label: "Acesso de Administrador" },
 };
 
 export default function LoginPage() {
@@ -51,7 +51,7 @@ export default function LoginPage() {
       <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-6xl flex-col items-center justify-center gap-10 px-4 py-10 lg:flex-row lg:gap-16">
         <div className="hidden max-w-md flex-1 text-white lg:block">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs backdrop-blur">
-            <Leaf className="h-3.5 w-3.5" /> AgroGestor - Versão demo
+            <Leaf className="h-3.5 w-3.5" /> Raizal - Versão demo
           </div>
           <h1 className="font-display text-4xl font-bold leading-tight">
             A gestão da sua fazenda começa aqui.
@@ -83,7 +83,7 @@ export default function LoginPage() {
                 <Leaf className="h-5 w-5" />
               </div>
               <div>
-                <p className="font-display text-lg font-bold text-foreground">AgroGestor</p>
+                <p className="font-display text-lg font-bold text-foreground">Raizal</p>
                 <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Gestão rural</p>
               </div>
             </div>
@@ -112,7 +112,7 @@ export default function LoginPage() {
               <TabsContent value="admin" className="mt-5">
                 <ModeHint
                   title="Acesso do Administrador"
-                  description="Cadastre e gerencie os gestores que terão acesso ao AgroGestor."
+                  description="Cadastre e gerencie os gestores que terão acesso ao Raizal."
                 />
               </TabsContent>
             </Tabs>

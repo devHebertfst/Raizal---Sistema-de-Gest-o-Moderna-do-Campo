@@ -1,10 +1,10 @@
-# AgroGestor
+# Raizal
 
 Aplicacao web de gestao rural para acompanhamento operacional, financeiro e produtivo de fazendas. O projeto foi construido como um prototipo front-end em React, com fluxo de autenticacao local, dashboard executivo e modulos para propriedades, plantacoes, rebanho, estoque, tarefas, calendario, relatorios e administracao de acessos.
 
 ## Visao geral
 
-O AgroGestor centraliza indicadores e cadastros de uma operacao agropecuaria em uma unica interface. A aplicacao possui dois perfis:
+O Raizal centraliza indicadores e cadastros de uma operacao agropecuaria em uma unica interface. A aplicacao possui dois perfis:
 
 - `gestor`: acessa o painel principal e os modulos de operacao
 - `admin`: acessa o painel administrativo para cadastrar e remover gestores
@@ -97,12 +97,12 @@ Use as credenciais abaixo na tela de login:
 
 ### Gestor
 
-- E-mail: `gestor@agrogestor.com`
+- E-mail: `gestor@Raizal.com`
 - Senha: `gestor123`
 
 ### Administrador
 
-- E-mail: `admin@agrogestor.com`
+- E-mail: `admin@Raizal.com`
 - Senha: `admin123`
 
 ## Estado atual do projeto

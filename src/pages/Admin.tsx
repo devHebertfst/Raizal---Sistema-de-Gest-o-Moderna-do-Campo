@@ -42,7 +42,7 @@ export default function AdminPage() {
           </div>
           <div className="leading-tight">
             <p className="font-display text-base font-bold text-foreground">Painel Administrador</p>
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">AgroGestor</p>
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Raizal</p>
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
@@ -69,7 +69,7 @@ export default function AdminPage() {
           </Badge>
           <h1 className="font-display text-2xl font-bold md:text-3xl">Gestão de acessos</h1>
           <p className="mt-1 max-w-xl text-sm text-white/85">
-            Cadastre e administre os gestores que utilizarão o AgroGestor para controlar suas operações rurais.
+            Cadastre e administre os gestores que utilizarão o Raizal para controlar suas operações rurais.
           </p>
         </div>
 

@@ -24,7 +24,7 @@ const titles: Record<string, { title: string; subtitle: string; group: string }>
 export default function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const meta = titles[location.pathname] ?? { title: "AgroGestor", subtitle: "", group: "Produto" };
+  const meta = titles[location.pathname] ?? { title: "Raizal", subtitle: "", group: "Produto" };
   const { theme, toggle } = useTheme();
   const { user, logout } = useAuth();
 
@@ -51,7 +51,7 @@ export default function AppLayout() {
               <SidebarTrigger className="text-muted-foreground" />
               <div className="hidden min-w-0 flex-1 md:block">
                 <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                  <span>AgroGestor</span>
+                  <span>Raizal</span>
                   <ChevronRight className="h-3 w-3" />
                   <span>{meta.group}</span>
                 </div>
@@ -80,7 +80,7 @@ export default function AppLayout() {
                     <AvatarFallback className="bg-primary text-xs font-bold text-primary-foreground">{initials}</AvatarFallback>
                   </Avatar>
                   <div className="text-left leading-tight">
-                    <p className="max-w-28 truncate text-xs font-bold text-foreground">{user?.name ?? "AgroGestor"}</p>
+                    <p className="max-w-28 truncate text-xs font-bold text-foreground">{user?.name ?? "Raizal"}</p>
                     <p className="text-[10px] text-muted-foreground">Conta demo</p>
                   </div>
                 </div>
@@ -100,7 +100,7 @@ export default function AppLayout() {
                 <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                   <span>{meta.group}</span>
                   <ChevronRight className="h-3 w-3" />
-                  <span>AgroGestor</span>
+                  <span>Raizal</span>
                 </div>
                 <h1 className="font-display text-2xl font-extrabold tracking-tight text-foreground">
                   {meta.title}
