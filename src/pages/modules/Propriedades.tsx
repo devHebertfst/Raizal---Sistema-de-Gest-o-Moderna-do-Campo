@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
+import { ConfirmAction } from "@/components/agro/ConfirmAction";
 
 const empty: Omit<Property, "id"> = {
   name: "", location: "", totalHa: 0, cultivableHa: 0, pastureHa: 0, freeHa: 0, notes: "",
@@ -105,9 +106,9 @@ export default function PropriedadesPage() {
                   <Button size="sm" variant="ghost" className="rounded-full" onClick={() => { setEditing(property); setOpen(true); }}>
                     <Pencil className="mr-1.5 h-4 w-4" /> Editar
                   </Button>
-                  <Button size="sm" variant="ghost" className="rounded-full text-danger hover:text-danger" onClick={() => { if (window.confirm("Remover esta propriedade e todos os registros vinculados?")) { removeProperty(property.id); toast("Propriedade removida"); } }}>
-                    <Trash2 className="mr-1.5 h-4 w-4" /> Remover
-                  </Button>
+                  <ConfirmAction description="A propriedade e todos os registros vinculados serão removidos permanentemente." onConfirm={() => { removeProperty(property.id); toast("Propriedade removida"); }}>
+                    <Button size="sm" variant="ghost" className="rounded-full text-danger hover:text-danger"><Trash2 className="mr-1.5 h-4 w-4" /> Remover</Button>
+                  </ConfirmAction>
                 </div>
               </div>
             );

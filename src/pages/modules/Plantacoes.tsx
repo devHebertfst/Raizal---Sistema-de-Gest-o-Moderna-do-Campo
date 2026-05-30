@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Plus, Sprout, Trash2 } from "lucide-react";
+import { Pencil, Plus, Sprout, Trash2 } from "lucide-react";
 import { fmtBRL, fmtDate, fmtNum, useFarm } from "@/context/FarmContext";
 import {
   Crop,
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { ConfirmAction } from "@/components/agro/ConfirmAction";
 
 const statusTone: Record<CropStatus, string> = {
   planejada: "bg-muted text-muted-foreground",
@@ -34,12 +35,16 @@ export default function PlantacoesPage() {
     properties,
     cropManagementRecords,
     addCrop,
+    updateCrop,
     removeCrop,
     addCropManagementRecord,
+    updateCropManagementRecord,
     removeCropManagementRecord,
   } = useFarm();
   const [open, setOpen] = useState(false);
   const [managementOpen, setManagementOpen] = useState(false);
+  const [editing, setEditing] = useState<Crop | null>(null);
+  const [editingManagement, setEditingManagement] = useState<CropManagementRecord | null>(null);
   const [fCulture, setFCulture] = useState("all");
   const [fSeason, setFSeason] = useState("all");
   const [fStatus, setFStatus] = useState<"all" | CropStatus>("all");
@@ -129,11 +134,30 @@ export default function PlantacoesPage() {
                 {Object.entries(CROP_STATUS_LABEL).map(([key, label]) => <SelectItem key={key} value={key}>{label}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Button className="rounded-full" onClick={() => setOpen(true)}><Plus className="mr-1.5 h-4 w-4" /> Nova plantação</Button>
+            <Button className="rounded-full" onClick={() => { setEditing(null); setOpen(true); }}><Plus className="mr-1.5 h-4 w-4" /> Nova plantação</Button>
           </div>
         }
       >
-        <div className="overflow-x-auto rounded-xl border border-border">
+        <div className="grid gap-3 md:hidden">
+          {filtered.map((crop) => (
+            <div key={crop.id} className="rounded-xl border border-border bg-card p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div><p className="font-semibold">{crop.culture}</p><p className="text-xs text-muted-foreground">{crop.season} · {crop.field}</p></div>
+                <Badge className={statusTone[crop.status]}>{CROP_STATUS_LABEL[crop.status]}</Badge>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <p>{fmtNum(crop.hectares)} ha</p><p>{fmtBRL(crop.estimatedCost)}</p>
+              </div>
+              <div className="mt-3 flex gap-2">
+                <Button size="sm" variant="ghost" onClick={() => { setEditing(crop); setOpen(true); }}><Pencil className="mr-1 h-4 w-4" /> Editar</Button>
+                <ConfirmAction description="A plantação e os manejos vinculados serão removidos." onConfirm={() => removeCrop(crop.id)}>
+                  <Button size="sm" variant="ghost" className="text-danger"><Trash2 className="mr-1 h-4 w-4" /> Remover</Button>
+                </ConfirmAction>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
           <table className="w-full min-w-[900px] text-sm">
             <thead className="bg-secondary/60 text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
@@ -167,9 +191,10 @@ export default function PlantacoesPage() {
                       <Badge className={`rounded-full font-medium ${statusTone[crop.status]}`}>{CROP_STATUS_LABEL[crop.status]}</Badge>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Button aria-label="Remover plantação" size="icon" variant="ghost" onClick={() => { if (window.confirm("Remover esta plantação e os manejos vinculados?")) { removeCrop(crop.id); toast("Plantação removida"); } }}>
-                        <Trash2 className="h-4 w-4 text-muted-foreground" />
-                      </Button>
+                      <Button aria-label="Editar plantação" size="icon" variant="ghost" onClick={() => { setEditing(crop); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                      <ConfirmAction description="A plantação e os manejos vinculados serão removidos." onConfirm={() => { removeCrop(crop.id); toast("Plantação removida"); }}>
+                        <Button aria-label="Remover plantação" size="icon" variant="ghost"><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
+                      </ConfirmAction>
                     </td>
                   </tr>
                 );
@@ -192,7 +217,7 @@ export default function PlantacoesPage() {
                 {crops.map((crop) => <SelectItem key={crop.id} value={crop.id}>{crop.culture} - {crop.season}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Button className="rounded-full" onClick={() => setManagementOpen(true)}>
+            <Button className="rounded-full" onClick={() => { setEditingManagement(null); setManagementOpen(true); }}>
               <Plus className="mr-1.5 h-4 w-4" /> Novo manejo
             </Button>
           </div>
@@ -212,7 +237,25 @@ export default function PlantacoesPage() {
           ))}
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-border">
+        <div className="grid gap-3 md:hidden">
+          {filteredManagement.map((record) => {
+            const crop = crops.find((item) => item.id === record.cropId);
+            return (
+              <div key={record.id} className="rounded-xl border border-border bg-card p-4">
+                <p className="font-semibold">{CROP_MANAGEMENT_LABEL[record.type]}</p>
+                <p className="text-xs text-muted-foreground">{crop?.culture ?? "-"} · {fmtDate(record.date)}</p>
+                <p className="mt-2 text-sm">{fmtBRL(record.cost)}</p>
+                <div className="mt-3 flex gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => { setEditingManagement(record); setManagementOpen(true); }}><Pencil className="mr-1 h-4 w-4" /> Editar</Button>
+                  <ConfirmAction description="O registro de manejo será removido permanentemente." onConfirm={() => removeCropManagementRecord(record.id)}>
+                    <Button size="sm" variant="ghost" className="text-danger"><Trash2 className="mr-1 h-4 w-4" /> Remover</Button>
+                  </ConfirmAction>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
           <table className="w-full min-w-[860px] text-sm">
             <thead className="bg-secondary/60 text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
@@ -239,9 +282,10 @@ export default function PlantacoesPage() {
                     <td className="px-4 py-3 text-muted-foreground">{record.responsible}</td>
                     <td className="px-4 py-3 text-right font-semibold">{fmtBRL(record.cost)}</td>
                     <td className="px-4 py-3 text-right">
-                      <Button aria-label="Remover manejo" size="icon" variant="ghost" onClick={() => { if (window.confirm("Remover este manejo?")) { removeCropManagementRecord(record.id); toast("Manejo removido"); } }}>
-                        <Trash2 className="h-4 w-4 text-muted-foreground" />
-                      </Button>
+                      <Button aria-label="Editar manejo" size="icon" variant="ghost" onClick={() => { setEditingManagement(record); setManagementOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                      <ConfirmAction description="O registro de manejo será removido permanentemente." onConfirm={() => { removeCropManagementRecord(record.id); toast("Manejo removido"); }}>
+                        <Button aria-label="Remover manejo" size="icon" variant="ghost"><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
+                      </ConfirmAction>
                     </td>
                   </tr>
                 );
@@ -254,30 +298,30 @@ export default function PlantacoesPage() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Nova plantação</DialogTitle></DialogHeader>
-          <CropForm properties={properties} onSave={(crop) => { addCrop(crop); toast.success("Plantação criada"); setOpen(false); }} />
+          <DialogHeader><DialogTitle>{editing ? "Editar plantação" : "Nova plantação"}</DialogTitle></DialogHeader>
+          <CropForm initial={editing} properties={properties} onSave={(crop) => { if (editing) updateCrop({ ...editing, ...crop }); else addCrop(crop); toast.success(editing ? "Plantação atualizada" : "Plantação criada"); setOpen(false); }} />
         </DialogContent>
       </Dialog>
 
       <Dialog open={managementOpen} onOpenChange={setManagementOpen}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Novo manejo</DialogTitle></DialogHeader>
-          <ManagementForm crops={crops} onSave={(record) => { addCropManagementRecord(record); toast.success("Manejo adicionado"); setManagementOpen(false); }} />
+          <DialogHeader><DialogTitle>{editingManagement ? "Editar manejo" : "Novo manejo"}</DialogTitle></DialogHeader>
+          <ManagementForm initial={editingManagement} crops={crops} onSave={(record) => { if (editingManagement) updateCropManagementRecord({ ...editingManagement, ...record }); else addCropManagementRecord(record); toast.success(editingManagement ? "Manejo atualizado" : "Manejo adicionado"); setManagementOpen(false); }} />
         </DialogContent>
       </Dialog>
     </div>
   );
 }
 
-function CropForm({ properties, onSave }: { properties: ReturnType<typeof useFarm>["properties"]; onSave: (crop: Omit<Crop, "id">) => void }) {
-  const [form, setForm] = useState<Omit<Crop, "id">>({
+function CropForm({ initial, properties, onSave }: { initial: Crop | null; properties: ReturnType<typeof useFarm>["properties"]; onSave: (crop: Omit<Crop, "id">) => void }) {
+  const [form, setForm] = useState<Omit<Crop, "id">>(initial ?? {
     culture: "Soja", season: "2024/2025", propertyId: properties[0]?.id ?? "",
     field: "", hectares: 0, plantingDate: new Date().toISOString().slice(0, 10),
     harvestForecast: new Date().toISOString().slice(0, 10), status: "planejada",
     expectedYield: 0, estimatedCost: 0, estimatedRevenue: 0,
   });
   return (
-    <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); onSave(form); }}>
+    <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); if (form.hectares <= 0 || form.expectedYield < 0 || form.estimatedCost < 0 || form.estimatedRevenue < 0) return toast.error("Revise os valores numéricos informados."); onSave(form); }}>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div><Label>Cultura</Label><Input value={form.culture} onChange={(event) => setForm({ ...form, culture: event.target.value })} /></div>
         <div><Label>Safra</Label><Input value={form.season} onChange={(event) => setForm({ ...form, season: event.target.value })} /></div>
@@ -309,13 +353,15 @@ function CropForm({ properties, onSave }: { properties: ReturnType<typeof useFar
 }
 
 function ManagementForm({
+  initial,
   crops,
   onSave,
 }: {
+  initial: CropManagementRecord | null;
   crops: ReturnType<typeof useFarm>["crops"];
   onSave: (record: Omit<CropManagementRecord, "id">) => void;
 }) {
-  const [form, setForm] = useState<Omit<CropManagementRecord, "id">>({
+  const [form, setForm] = useState<Omit<CropManagementRecord, "id">>(initial ?? {
     cropId: crops[0]?.id ?? "",
     type: "adubacao",
     date: new Date().toISOString().slice(0, 10),
@@ -327,7 +373,7 @@ function ManagementForm({
   });
 
   return (
-    <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); onSave(form); }}>
+    <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); if (form.quantity < 0 || form.cost < 0) return toast.error("Quantidade e custo não podem ser negativos."); onSave(form); }}>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <Label>Plantação</Label>

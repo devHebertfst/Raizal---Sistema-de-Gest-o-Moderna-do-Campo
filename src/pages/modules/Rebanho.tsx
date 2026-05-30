@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Beef, Plus, ShieldPlus, Trash2 } from "lucide-react";
+import { Beef, Pencil, Plus, ShieldPlus, Trash2 } from "lucide-react";
 import { fmtBRL, fmtDate, fmtNum, useFarm } from "@/context/FarmContext";
 import {
   AnimalSex,
@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { ConfirmAction } from "@/components/agro/ConfirmAction";
 
 export default function RebanhoPage() {
   const {
@@ -30,12 +31,16 @@ export default function RebanhoPage() {
     properties,
     sanitaryRecords,
     addLivestock,
+    updateLivestock,
     removeLivestock,
     addSanitaryRecord,
+    updateSanitaryRecord,
     removeSanitaryRecord,
   } = useFarm();
   const [open, setOpen] = useState(false);
   const [sanitaryOpen, setSanitaryOpen] = useState(false);
+  const [editing, setEditing] = useState<Livestock | null>(null);
+  const [editingSanitary, setEditingSanitary] = useState<SanitaryRecord | null>(null);
   const [fBreed, setFBreed] = useState("all");
   const [fSex, setFSex] = useState<"all" | AnimalSex>("all");
   const [fProp, setFProp] = useState("all");
@@ -113,11 +118,28 @@ export default function RebanhoPage() {
                 <SelectItem value="abatido">Abatido</SelectItem>
               </SelectContent>
             </Select>
-            <Button className="rounded-full" onClick={() => setOpen(true)}><Plus className="mr-1.5 h-4 w-4" /> Novo lote</Button>
+            <Button className="rounded-full" onClick={() => { setEditing(null); setOpen(true); }}><Plus className="mr-1.5 h-4 w-4" /> Novo lote</Button>
           </div>
         }
       >
-        <div className="overflow-x-auto rounded-xl border border-border">
+        <div className="grid gap-3 md:hidden">
+          {filtered.map((item) => (
+            <div key={item.id} className="rounded-xl border border-border bg-card p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div><p className="font-semibold">{item.tag}</p><p className="text-xs text-muted-foreground">{ANIMAL_TYPE_LABEL[item.type]} · {item.breed}</p></div>
+                <Badge variant="secondary">{item.status}</Badge>
+              </div>
+              <p className="mt-3 text-sm">{item.count ?? 1} cabeças · {fmtNum(item.weightKg)} kg</p>
+              <div className="mt-3 flex gap-2">
+                <Button size="sm" variant="ghost" onClick={() => { setEditing(item); setOpen(true); }}><Pencil className="mr-1 h-4 w-4" /> Editar</Button>
+                <ConfirmAction description="O lote e o histórico sanitário vinculado serão removidos." onConfirm={() => removeLivestock(item.id)}>
+                  <Button size="sm" variant="ghost" className="text-danger"><Trash2 className="mr-1 h-4 w-4" /> Remover</Button>
+                </ConfirmAction>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
           <table className="w-full min-w-[1000px] text-sm">
             <thead className="bg-secondary/60 text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
@@ -156,9 +178,10 @@ export default function RebanhoPage() {
                       <Badge className={`rounded-full font-medium ${item.status === "ativo" ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>{item.status}</Badge>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Button aria-label="Remover lote" size="icon" variant="ghost" onClick={() => { if (window.confirm("Remover este lote e o histórico sanitário vinculado?")) { removeLivestock(item.id); toast("Lote removido"); } }}>
-                        <Trash2 className="h-4 w-4 text-muted-foreground" />
-                      </Button>
+                      <Button aria-label="Editar lote" size="icon" variant="ghost" onClick={() => { setEditing(item); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                      <ConfirmAction description="O lote e o histórico sanitário vinculado serão removidos." onConfirm={() => { removeLivestock(item.id); toast("Lote removido"); }}>
+                        <Button aria-label="Remover lote" size="icon" variant="ghost"><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
+                      </ConfirmAction>
                     </td>
                   </tr>
                 );
@@ -181,7 +204,7 @@ export default function RebanhoPage() {
                 {livestock.map((item) => <SelectItem key={item.id} value={item.id}>{item.tag}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Button className="rounded-full" onClick={() => setSanitaryOpen(true)}>
+            <Button className="rounded-full" onClick={() => { setEditingSanitary(null); setSanitaryOpen(true); }}>
               <Plus className="mr-1.5 h-4 w-4" /> Novo procedimento
             </Button>
           </div>
@@ -200,7 +223,22 @@ export default function RebanhoPage() {
           })}
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-border">
+        <div className="grid gap-3 md:hidden">
+          {filteredSanitary.map((record) => (
+            <div key={record.id} className="rounded-xl border border-border bg-card p-4">
+              <p className="font-semibold">{SANITARY_PROCEDURE_LABEL[record.procedure]}</p>
+              <p className="text-xs text-muted-foreground">{record.product} · {fmtDate(record.date)}</p>
+              <p className="mt-2 text-sm">{fmtBRL(record.cost)}</p>
+              <div className="mt-3 flex gap-2">
+                <Button size="sm" variant="ghost" onClick={() => { setEditingSanitary(record); setSanitaryOpen(true); }}><Pencil className="mr-1 h-4 w-4" /> Editar</Button>
+                <ConfirmAction description="O procedimento será removido permanentemente." onConfirm={() => removeSanitaryRecord(record.id)}>
+                  <Button size="sm" variant="ghost" className="text-danger"><Trash2 className="mr-1 h-4 w-4" /> Remover</Button>
+                </ConfirmAction>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
           <table className="w-full min-w-[820px] text-sm">
             <thead className="bg-secondary/60 text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
@@ -225,9 +263,10 @@ export default function RebanhoPage() {
                     <td className="px-4 py-3 text-muted-foreground">{record.responsible}</td>
                     <td className="px-4 py-3 text-right font-semibold">{fmtBRL(record.cost)}</td>
                     <td className="px-4 py-3 text-right">
-                      <Button aria-label="Remover procedimento" size="icon" variant="ghost" onClick={() => { if (window.confirm("Remover este procedimento?")) { removeSanitaryRecord(record.id); toast("Procedimento removido"); } }}>
-                        <Trash2 className="h-4 w-4 text-muted-foreground" />
-                      </Button>
+                      <Button aria-label="Editar procedimento" size="icon" variant="ghost" onClick={() => { setEditingSanitary(record); setSanitaryOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                      <ConfirmAction description="O procedimento será removido permanentemente." onConfirm={() => { removeSanitaryRecord(record.id); toast("Procedimento removido"); }}>
+                        <Button aria-label="Remover procedimento" size="icon" variant="ghost"><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
+                      </ConfirmAction>
                     </td>
                   </tr>
                 );
@@ -240,29 +279,29 @@ export default function RebanhoPage() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Novo lote / animal</DialogTitle></DialogHeader>
-          <LivestockForm properties={properties} onSave={(item) => { addLivestock(item); toast.success("Lote adicionado"); setOpen(false); }} />
+          <DialogHeader><DialogTitle>{editing ? "Editar lote / animal" : "Novo lote / animal"}</DialogTitle></DialogHeader>
+          <LivestockForm initial={editing} properties={properties} onSave={(item) => { if (editing) updateLivestock({ ...editing, ...item }); else addLivestock(item); toast.success(editing ? "Lote atualizado" : "Lote adicionado"); setOpen(false); }} />
         </DialogContent>
       </Dialog>
 
       <Dialog open={sanitaryOpen} onOpenChange={setSanitaryOpen}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Novo procedimento sanitário</DialogTitle></DialogHeader>
-          <SanitaryForm livestock={livestock} onSave={(record) => { addSanitaryRecord(record); toast.success("Procedimento adicionado"); setSanitaryOpen(false); }} />
+          <DialogHeader><DialogTitle>{editingSanitary ? "Editar procedimento sanitário" : "Novo procedimento sanitário"}</DialogTitle></DialogHeader>
+          <SanitaryForm initial={editingSanitary} livestock={livestock} onSave={(record) => { if (editingSanitary) updateSanitaryRecord({ ...editingSanitary, ...record }); else addSanitaryRecord(record); toast.success(editingSanitary ? "Procedimento atualizado" : "Procedimento adicionado"); setSanitaryOpen(false); }} />
         </DialogContent>
       </Dialog>
     </div>
   );
 }
 
-function LivestockForm({ properties, onSave }: { properties: ReturnType<typeof useFarm>["properties"]; onSave: (item: Omit<Livestock, "id">) => void }) {
-  const [form, setForm] = useState<Omit<Livestock, "id">>({
+function LivestockForm({ initial, properties, onSave }: { initial: Livestock | null; properties: ReturnType<typeof useFarm>["properties"]; onSave: (item: Omit<Livestock, "id">) => void }) {
+  const [form, setForm] = useState<Omit<Livestock, "id">>(initial ?? {
     tag: "", type: "boi", breed: "Nelore", sex: "macho", ageMonths: 24, weightKg: 400,
     propertyId: properties[0]?.id ?? "", status: "ativo",
     purchaseDate: new Date().toISOString().slice(0, 10), purchaseValue: 0, estimatedValue: 0, count: 1, notes: "",
   });
   return (
-    <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); onSave(form); }}>
+    <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); if ((form.count ?? 1) <= 0 || form.ageMonths < 0 || form.weightKg < 0 || form.purchaseValue < 0 || form.estimatedValue < 0) return toast.error("Revise os valores numéricos informados."); onSave(form); }}>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="sm:col-span-2"><Label>Identificação</Label><Input value={form.tag} onChange={(event) => setForm({ ...form, tag: event.target.value })} /></div>
         <div>
@@ -308,13 +347,15 @@ function LivestockForm({ properties, onSave }: { properties: ReturnType<typeof u
 }
 
 function SanitaryForm({
+  initial,
   livestock,
   onSave,
 }: {
+  initial: SanitaryRecord | null;
   livestock: ReturnType<typeof useFarm>["livestock"];
   onSave: (record: Omit<SanitaryRecord, "id">) => void;
 }) {
-  const [form, setForm] = useState<Omit<SanitaryRecord, "id">>({
+  const [form, setForm] = useState<Omit<SanitaryRecord, "id">>(initial ?? {
     livestockId: livestock[0]?.id ?? "",
     procedure: "vacinacao",
     date: new Date().toISOString().slice(0, 10),
@@ -325,7 +366,7 @@ function SanitaryForm({
   });
 
   return (
-    <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); onSave(form); }}>
+    <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); if (form.cost < 0) return toast.error("O custo não pode ser negativo."); onSave(form); }}>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <Label>Animal ou lote</Label>

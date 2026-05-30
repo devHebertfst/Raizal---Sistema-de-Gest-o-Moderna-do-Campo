@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
+  Pencil,
   Trash2,
   type LucideIcon,
 } from "lucide-react";
@@ -47,6 +48,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { ConfirmAction } from "@/components/agro/ConfirmAction";
 
 const categoryTone: Record<EventCategory, string> = {
   plantio: "bg-success/15 text-success border-success/30",
@@ -71,7 +73,7 @@ const isoOf = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
 export default function CalendarioPage() {
-  const { events, properties, crops, livestock, addEvent, removeEvent, toggleEventDone } = useFarm();
+  const { events, properties, crops, livestock, addEvent, updateEvent, removeEvent, toggleEventDone } = useFarm();
   const [cursor, setCursor] = useState(() => {
     const date = new Date();
     date.setDate(1);
@@ -79,6 +81,7 @@ export default function CalendarioPage() {
   });
   const [selected, setSelected] = useState<Date>(new Date());
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<FarmEvent | null>(null);
   const [filterCategory, setFilterCategory] = useState<"all" | EventCategory>("all");
   const [filterProperty, setFilterProperty] = useState("all");
 
@@ -195,7 +198,7 @@ export default function CalendarioPage() {
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
-              <Button size="sm" className="h-8 flex-1 rounded-full sm:ml-2 sm:flex-none" onClick={() => setOpen(true)}>
+              <Button size="sm" className="h-8 flex-1 rounded-full sm:ml-2 sm:flex-none" onClick={() => { setEditing(null); setOpen(true); }}>
                 <Plus className="mr-1 h-4 w-4" /> Novo lembrete
               </Button>
             </div>
@@ -282,7 +285,7 @@ export default function CalendarioPage() {
           title={format(selected, "EEEE, dd 'de' MMMM", { locale: ptBR }).replace(/^\w/, (letter) => letter.toUpperCase())}
           subtitle={`${dayEvents.length} ${dayEvents.length === 1 ? "evento" : "eventos"}`}
           actions={
-            <Button size="sm" variant="outline" className="rounded-full" onClick={() => setOpen(true)}>
+            <Button size="sm" variant="outline" className="rounded-full" onClick={() => { setEditing(null); setOpen(true); }}>
               <Plus className="mr-1 h-3.5 w-3.5" /> Adicionar
             </Button>
           }
@@ -339,18 +342,10 @@ export default function CalendarioPage() {
                           <p className="mt-1 text-xs text-muted-foreground">{event.description}</p>
                         )}
                       </div>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => {
-                          if (window.confirm("Remover este evento?")) {
-                            removeEvent(event.id);
-                            toast("Evento removido");
-                          }
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 text-muted-foreground" />
-                      </Button>
+                      <Button aria-label="Editar evento" size="icon" variant="ghost" onClick={() => { setEditing(event); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                      <ConfirmAction description="O evento será removido permanentemente." onConfirm={() => { removeEvent(event.id); toast("Evento removido"); }}>
+                        <Button aria-label="Remover evento" size="icon" variant="ghost"><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
+                      </ConfirmAction>
                     </div>
                   </li>
                 );
@@ -402,16 +397,18 @@ export default function CalendarioPage() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Novo lembrete / atividade</DialogTitle>
+            <DialogTitle>{editing ? "Editar lembrete / atividade" : "Novo lembrete / atividade"}</DialogTitle>
           </DialogHeader>
           <EventForm
             initialDate={selected}
+            initial={editing}
             properties={properties}
             crops={crops}
             livestock={livestock}
             onSave={(data) => {
-              addEvent(data);
-              toast.success("Lembrete adicionado");
+              if (editing) updateEvent({ ...editing, ...data });
+              else addEvent(data);
+              toast.success(editing ? "Lembrete atualizado" : "Lembrete adicionado");
               setSelected(parseISODateLocal(data.date));
               setOpen(false);
             }}
@@ -456,28 +453,30 @@ function KpiTile({
 }
 
 function EventForm({
+  initial,
   initialDate,
   properties,
   crops,
   livestock,
   onSave,
 }: {
+  initial: FarmEvent | null;
   initialDate: Date;
   properties: ReturnType<typeof useFarm>["properties"];
   crops: ReturnType<typeof useFarm>["crops"];
   livestock: ReturnType<typeof useFarm>["livestock"];
   onSave: (event: Omit<FarmEvent, "id">) => void;
 }) {
-  const [date, setDate] = useState<Date>(initialDate);
+  const [date, setDate] = useState<Date>(initial ? parseISODateLocal(initial.date) : initialDate);
   const [form, setForm] = useState({
-    title: "",
-    description: "",
-    time: "",
-    category: "tarefa" as EventCategory,
-    priority: "media" as EventPriority,
-    propertyId: "",
-    cropId: "",
-    livestockId: "",
+    title: initial?.title ?? "",
+    description: initial?.description ?? "",
+    time: initial?.time ?? "",
+    category: initial?.category ?? "tarefa" as EventCategory,
+    priority: initial?.priority ?? "media" as EventPriority,
+    propertyId: initial?.propertyId ?? "",
+    cropId: initial?.cropId ?? "",
+    livestockId: initial?.livestockId ?? "",
   });
 
   return (

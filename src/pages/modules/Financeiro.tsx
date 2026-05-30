@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import {
   CheckCircle2,
   Clock,
+  Pencil,
   Plus,
   Search,
   TrendingDown,
@@ -15,6 +16,7 @@ import {
   ACCOUNT_TYPE_LABEL,
   AccountStatus,
   AccountType,
+  AccountEntry,
   CATEGORY_LABEL,
   Transaction,
   TxCategory,
@@ -34,6 +36,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { ConfirmAction } from "@/components/agro/ConfirmAction";
 import {
   Select,
   SelectContent,
@@ -51,6 +55,9 @@ export default function FinanceiroPage() {
     crops,
     livestock,
     accounts,
+    addAccount,
+    updateAccount,
+    removeAccount,
     addTransaction,
     removeTransaction,
     markAccountPaid,
@@ -62,6 +69,8 @@ export default function FinanceiroPage() {
   const [period, setPeriod] = useState<"all" | "30" | "90" | "year">("all");
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<AccountEntry | null>(null);
   const accountStatusOf = (account: typeof accounts[number]): AccountStatus =>
     account.status !== "pago" && parseISODateLocal(account.dueDate) < new Date() ? "atrasado" : account.status;
 
@@ -135,10 +144,34 @@ export default function FinanceiroPage() {
                 <SelectItem value="atrasado">Atrasado</SelectItem>
               </SelectContent>
             </Select>
+            <Button className="rounded-full" onClick={() => { setEditingAccount(null); setAccountOpen(true); }}>
+              <Plus className="mr-1.5 h-4 w-4" /> Nova conta
+            </Button>
           </div>
         }
       >
-        <div className="overflow-x-auto rounded-xl border border-border">
+        <div className="grid gap-3 md:hidden">
+          {filteredAccounts.map((account) => {
+            const effectiveStatus = accountStatusOf(account);
+            return (
+              <div key={account.id} className="rounded-xl border border-border bg-card p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div><p className="font-semibold">{account.description}</p><p className="text-xs text-muted-foreground">{fmtDate(account.dueDate)}</p></div>
+                  <Badge variant="secondary">{ACCOUNT_STATUS_LABEL[effectiveStatus]}</Badge>
+                </div>
+                <p className="mt-3 font-bold">{fmtBRL(account.value)}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {effectiveStatus !== "pago" && <Button size="sm" variant="outline" onClick={() => markAccountPaid(account.id)}>Marcar pago</Button>}
+                  <Button size="sm" variant="ghost" onClick={() => { setEditingAccount(account); setAccountOpen(true); }}><Pencil className="mr-1 h-4 w-4" /> Editar</Button>
+                  <ConfirmAction description="A conta será removida permanentemente." onConfirm={() => removeAccount(account.id)}>
+                    <Button size="sm" variant="ghost" className="text-danger"><Trash2 className="mr-1 h-4 w-4" /> Remover</Button>
+                  </ConfirmAction>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
           <table className="w-full min-w-[850px] text-sm">
             <thead className="bg-secondary/60 text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
@@ -178,6 +211,12 @@ export default function FinanceiroPage() {
                           Marcar pago
                         </Button>
                       )}
+                      <Button aria-label="Editar conta" size="icon" variant="ghost" onClick={() => { setEditingAccount(account); setAccountOpen(true); }}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <ConfirmAction description="A conta será removida permanentemente." onConfirm={() => removeAccount(account.id)}>
+                        <Button aria-label="Remover conta" size="icon" variant="ghost"><Trash2 className="h-4 w-4 text-danger" /></Button>
+                      </ConfirmAction>
                     </td>
                   </tr>
                 );
@@ -246,7 +285,20 @@ export default function FinanceiroPage() {
           </Select>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-border">
+        <div className="grid gap-3 md:hidden">
+          {filtered.map((item) => (
+            <div key={item.id} className="rounded-xl border border-border bg-card p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div><p className="font-semibold">{item.description}</p><p className="text-xs text-muted-foreground">{fmtDate(item.date)}</p></div>
+                <p className={cn("font-bold", item.type === "receita" ? "text-success" : "text-danger")}>{item.type === "receita" ? "+" : "-"} {fmtBRL(item.value)}</p>
+              </div>
+              <ConfirmAction description="O lançamento será removido permanentemente." onConfirm={() => { removeTransaction(item.id); toast("Lançamento removido"); }}>
+                <Button size="sm" variant="ghost" className="mt-3 text-danger"><Trash2 className="mr-1 h-4 w-4" /> Remover</Button>
+              </ConfirmAction>
+            </div>
+          ))}
+        </div>
+        <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
           <table className="w-full min-w-[780px] text-sm">
             <thead className="bg-secondary/60 text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
@@ -271,9 +323,9 @@ export default function FinanceiroPage() {
                       {item.type === "receita" ? "+" : "-"} {fmtBRL(item.value)}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Button aria-label="Remover lançamento" size="icon" variant="ghost" onClick={() => { if (window.confirm("Remover este lançamento?")) { removeTransaction(item.id); toast("Lançamento removido"); } }}>
-                        <Trash2 className="h-4 w-4 text-muted-foreground" />
-                      </Button>
+                      <ConfirmAction description="O lançamento será removido permanentemente." onConfirm={() => { removeTransaction(item.id); toast("Lançamento removido"); }}>
+                        <Button aria-label="Remover lançamento" size="icon" variant="ghost"><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
+                      </ConfirmAction>
                     </td>
                   </tr>
                 );
@@ -282,7 +334,48 @@ export default function FinanceiroPage() {
           </table>
         </div>
       </SectionCard>
+
+      <Dialog open={accountOpen} onOpenChange={setAccountOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>{editingAccount ? "Editar conta" : "Nova conta"}</DialogTitle></DialogHeader>
+          <AccountForm
+            initial={editingAccount}
+            properties={properties}
+            onSave={(account) => {
+              if (editingAccount) updateAccount({ ...editingAccount, ...account });
+              else addAccount(account);
+              toast.success(editingAccount ? "Conta atualizada" : "Conta adicionada");
+              setAccountOpen(false);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+function AccountForm({ initial, properties, onSave }: {
+  initial: AccountEntry | null;
+  properties: ReturnType<typeof useFarm>["properties"];
+  onSave: (account: Omit<AccountEntry, "id">) => void;
+}) {
+  const [form, setForm] = useState<Omit<AccountEntry, "id">>(initial ?? {
+    description: "", type: "pagar", category: "", value: 0,
+    dueDate: new Date().toISOString().slice(0, 10), status: "pendente", propertyId: "", notes: "",
+  });
+  return (
+    <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); if (form.value <= 0) return toast.error("Informe um valor maior que zero."); onSave(form); }}>
+      <div><Label>Descrição</Label><Input required value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div><Label>Categoria</Label><Input required value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} /></div>
+        <div><Label>Valor</Label><Input required min="0.01" step="0.01" type="number" value={form.value} onChange={(event) => setForm({ ...form, value: Number(event.target.value) })} /></div>
+        <div><Label>Tipo</Label><Select value={form.type} onValueChange={(value) => setForm({ ...form, type: value as AccountType })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pagar">A pagar</SelectItem><SelectItem value="receber">A receber</SelectItem></SelectContent></Select></div>
+        <div><Label>Vencimento</Label><Input required type="date" value={form.dueDate} onChange={(event) => setForm({ ...form, dueDate: event.target.value })} /></div>
+        <div className="sm:col-span-2"><Label>Propriedade</Label><Select value={form.propertyId || "none"} onValueChange={(value) => setForm({ ...form, propertyId: value === "none" ? "" : value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">Sem propriedade</SelectItem>{properties.map((property) => <SelectItem key={property.id} value={property.id}>{property.name}</SelectItem>)}</SelectContent></Select></div>
+      </div>
+      <div><Label>Observações</Label><Textarea value={form.notes ?? ""} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></div>
+      <DialogFooter><Button className="w-full" type="submit">Salvar conta</Button></DialogFooter>
+    </form>
   );
 }
 
@@ -313,7 +406,7 @@ function NewTxForm({
       className="space-y-4"
       onSubmit={(event) => {
         event.preventDefault();
-        if (!form.description || !form.value) return;
+        if (!form.description || Number(form.value) <= 0) return toast.error("Informe uma descrição e um valor maior que zero.");
         onSave({
           description: form.description,
           type: form.type,

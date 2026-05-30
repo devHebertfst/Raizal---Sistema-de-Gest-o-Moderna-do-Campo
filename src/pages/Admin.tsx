@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner";
 import { fmtDate } from "@/context/FarmContext";
 import type { LucideIcon } from "lucide-react";
+import { ConfirmAction } from "@/components/agro/ConfirmAction";
 
 export default function AdminPage() {
   const { users, user, logout, createGestor, removeGestor } = useAuth();
@@ -140,9 +141,9 @@ export default function AdminPage() {
                     <td className="px-4 py-3 text-muted-foreground">{gestor.farm ?? "-"}</td>
                     <td className="px-4 py-3 text-muted-foreground">{fmtDate(gestor.createdAt)}</td>
                     <td className="px-4 py-3 text-right">
-                      <Button aria-label="Remover gestor" size="icon" variant="ghost" onClick={() => { if (window.confirm("Remover este gestor?")) { removeGestor(gestor.id); toast("Gestor removido"); } }}>
-                        <Trash2 className="h-4 w-4 text-danger" />
-                      </Button>
+                      <ConfirmAction description="O acesso do gestor será removido permanentemente." onConfirm={() => { removeGestor(gestor.id); toast("Gestor removido"); }}>
+                        <Button aria-label="Remover gestor" size="icon" variant="ghost"><Trash2 className="h-4 w-4 text-danger" /></Button>
+                      </ConfirmAction>
                     </td>
                   </tr>
                 ))}

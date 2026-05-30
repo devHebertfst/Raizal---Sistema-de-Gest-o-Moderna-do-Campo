@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { ConfirmAction } from "@/components/agro/ConfirmAction";
 
 const emptyItem: Omit<StockItem, "id"> = {
   name: "",
@@ -173,9 +174,9 @@ export default function EstoquePage() {
                       <Button size="icon" variant="ghost" onClick={() => { setEditing(item); setOpen(true); }}>
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button aria-label="Remover item" size="icon" variant="ghost" onClick={() => { if (window.confirm("Remover este item do estoque?")) { removeStockItem(item.id); toast("Item removido"); } }}>
-                        <Trash2 className="h-4 w-4 text-danger" />
-                      </Button>
+                      <ConfirmAction description="O item será removido permanentemente do estoque." onConfirm={() => { removeStockItem(item.id); toast("Item removido"); }}>
+                        <Button aria-label="Remover item" size="icon" variant="ghost"><Trash2 className="h-4 w-4 text-danger" /></Button>
+                      </ConfirmAction>
                     </td>
                   </tr>
                 );
@@ -216,7 +217,7 @@ function StockForm({
   const [form, setForm] = useState<Omit<StockItem, "id">>(initial);
 
   return (
-    <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); onSave(form); }}>
+    <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); if (form.quantity < 0 || form.minQuantity < 0 || form.unitCost < 0) return toast.error("Quantidade e custo não podem ser negativos."); onSave(form); }}>
       <div>
         <Label>Nome</Label>
         <Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required />
