@@ -7,9 +7,9 @@ export const DEFAULT_TASK_COLUMNS: TaskColumn[] = FIXED_TASK_COLUMNS.map((fixedS
   fixedStatus,
 }));
 
-export const taskColumnId = (task: FarmTask) => task.columnId ?? task.status;
+export const taskColumnId = (task: Pick<FarmTask, "columnId" | "status">) => task.columnId ?? task.status;
 
-export const taskColumnTitle = (task: FarmTask, columns: TaskColumn[]) =>
+export const taskColumnTitle = (task: Pick<FarmTask, "columnId" | "status">, columns: TaskColumn[]) =>
   columns.find((column) => column.id === taskColumnId(task))?.title ?? TASK_STATUS_LABEL[task.status];
 
 export const normalizeTaskColumns = (columns: TaskColumn[] = []) => {
@@ -27,7 +27,7 @@ export const reorderTaskColumns = (columns: TaskColumn[], sourceId: string, targ
   return reordered;
 };
 
-export const moveTaskToColumn = (task: FarmTask, columnId: string): FarmTask => {
+export const moveTaskToColumn = <Task extends Pick<FarmTask, "columnId" | "status">>(task: Task, columnId: string): Task => {
   if (FIXED_TASK_COLUMNS.includes(columnId as TaskStatus)) {
     return { ...task, status: columnId as TaskStatus, columnId: undefined };
   }

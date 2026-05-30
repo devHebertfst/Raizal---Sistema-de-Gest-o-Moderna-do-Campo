@@ -274,7 +274,7 @@ export default function TarefasPage() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{editing ? "Editar tarefa" : "Nova tarefa"}</DialogTitle></DialogHeader>
-          <TaskForm initial={editing ?? emptyTask} properties={properties} onSave={save} />
+          <TaskForm initial={editing ?? emptyTask} properties={properties} taskColumns={taskColumns} onSave={save} />
         </DialogContent>
       </Dialog>
       <ColumnDialog open={columnOpen} initial={editingColumn} onOpenChange={setColumnOpen} onSave={saveColumn} />
@@ -330,10 +330,12 @@ function TaskCard({
 function TaskForm({
   initial,
   properties,
+  taskColumns,
   onSave,
 }: {
   initial: Omit<FarmTask, "id">;
   properties: ReturnType<typeof useFarm>["properties"];
+  taskColumns: TaskColumn[];
   onSave: (task: Omit<FarmTask, "id">) => void;
 }) {
   const [form, setForm] = useState<Omit<FarmTask, "id">>(initial);
@@ -363,10 +365,10 @@ function TaskForm({
         </div>
         <div>
           <Label>Status</Label>
-          <Select value={form.status} onValueChange={(value) => setForm({ ...form, status: value as TaskStatus, columnId: undefined })}>
+          <Select value={taskColumnId(form)} onValueChange={(value) => setForm(moveTaskToColumn(form, value))}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              {Object.entries(TASK_STATUS_LABEL).map(([key, label]) => <SelectItem key={key} value={key}>{label}</SelectItem>)}
+              {taskColumns.map((column) => <SelectItem key={column.id} value={column.id}>{column.title}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
