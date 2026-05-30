@@ -1,11 +1,15 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/agro/AppSidebar";
-import { ChevronRight, LogOut, Moon, Sun } from "lucide-react";
+import { AlertTriangle, Bell, CheckCheck, ChevronRight, LogOut, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useNotifications } from "@/hooks/use-notifications";
+import { cn } from "@/lib/utils";
 
 const titles: Record<string, { title: string; subtitle: string; group: string }> = {
   "/": { title: "Dashboard", subtitle: "Visao estrategica da operacao rural", group: "Estrategia" },
@@ -26,6 +30,7 @@ export default function AppLayout() {
   const meta = titles[location.pathname] ?? { title: "Raizal", subtitle: "", group: "Produto" };
   const { theme, toggle } = useTheme();
   const { user, logout } = useAuth();
+  const { notifications, unreadCount, isRead, markRead, markAllRead } = useNotifications();
 
   const initials = user?.name
     .split(" ")
@@ -63,6 +68,48 @@ export default function AppLayout() {
                 <Button variant="ghost" size="icon" className="rounded-full" onClick={toggle} aria-label="Alternar tema">
                   {theme === "dark" ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
                 </Button>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="relative rounded-full" aria-label={`${unreadCount} notificações não lidas`}>
+                      <Bell className="h-[18px] w-[18px]" />
+                      {unreadCount > 0 && (
+                        <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-danger-foreground">
+                          {unreadCount > 99 ? "99+" : unreadCount}
+                        </span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-[min(24rem,calc(100vw-2rem))] p-0">
+                    <div className="flex items-center justify-between border-b border-border p-4">
+                      <div><p className="font-bold">Notificações</p><p className="text-xs text-muted-foreground">{unreadCount} não lidas</p></div>
+                      {unreadCount > 0 && <Button size="sm" variant="ghost" onClick={markAllRead}><CheckCheck className="mr-1 h-4 w-4" /> Marcar lidas</Button>}
+                    </div>
+                    <ScrollArea className="h-96">
+                      {notifications.length === 0 ? (
+                        <p className="p-6 text-center text-sm text-muted-foreground">Nenhuma pendência encontrada.</p>
+                      ) : notifications.map((notification) => (
+                        <button
+                          key={notification.id}
+                          type="button"
+                          onClick={() => { markRead(notification.id); navigate(notification.path); }}
+                          className={cn(
+                            "flex w-full gap-3 border-b border-border/70 p-4 text-left transition hover:bg-secondary/50",
+                            isRead(notification.id) && "opacity-60",
+                          )}
+                        >
+                          <span className={cn(
+                            "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                            notification.tone === "danger" && "bg-danger/15 text-danger",
+                            notification.tone === "warning" && "bg-warning/15 text-warning",
+                            notification.tone === "primary" && "bg-primary/10 text-primary",
+                          )}><AlertTriangle className="h-4 w-4" /></span>
+                          <span className="min-w-0"><span className="block text-sm font-semibold">{notification.title}</span><span className="mt-0.5 block text-xs text-muted-foreground">{notification.detail}</span></span>
+                          {!isRead(notification.id) && <span className="mt-3 h-2 w-2 shrink-0 rounded-full bg-danger" />}
+                        </button>
+                      ))}
+                    </ScrollArea>
+                  </PopoverContent>
+                </Popover>
                 <div className="hidden items-center gap-2 rounded-full border border-border/80 bg-card/90 py-1 pl-1 pr-3 shadow-sm sm:flex">
                   <Avatar className="h-7 w-7">
                     <AvatarFallback className="bg-primary text-xs font-bold text-primary-foreground">{initials}</AvatarFallback>
