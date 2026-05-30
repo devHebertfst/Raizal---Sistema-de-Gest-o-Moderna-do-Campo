@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, Boxes, PackagePlus, Pencil, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Boxes, History, PackagePlus, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { fmtBRL, fmtDate, fmtNum, useFarm } from "@/context/FarmContext";
-import { StockCategory, StockItem, STOCK_CATEGORY_LABEL } from "@/data/types";
+import { StockCategory, StockItem, StockMovement, StockMovementType, STOCK_CATEGORY_LABEL, STOCK_MOVEMENT_TYPE_LABEL } from "@/data/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -40,11 +40,14 @@ const emptyItem: Omit<StockItem, "id"> = {
 };
 
 export default function EstoquePage() {
-  const { stockItems, properties, addStockItem, updateStockItem, removeStockItem } = useFarm();
+  const { stockItems, stockMovements, properties, addStockItem, updateStockItem, removeStockItem, addStockMovement } = useFarm();
   const [category, setCategory] = useState<"all" | StockCategory>("all");
   const [property, setProperty] = useState("all");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<StockItem | null>(null);
+  const [movementOpen, setMovementOpen] = useState(false);
+  const [movementItem, setMovementItem] = useState<StockItem | null>(null);
+  const [movementType, setMovementType] = useState<"all" | StockMovementType>("all");
 
   const filtered = useMemo(
     () => stockItems.filter((item) =>
@@ -66,6 +69,16 @@ export default function EstoquePage() {
     setEditing(null);
     setOpen(true);
   };
+
+  const startMovement = (item?: StockItem) => {
+    setMovementItem(item ?? null);
+    setMovementOpen(true);
+  };
+
+  const filteredMovements = stockMovements.filter((movement) =>
+    (movementType === "all" || movement.type === movementType) &&
+    (property === "all" || stockItems.find((item) => item.id === movement.stockItemId)?.propertyId === property),
+  );
 
   return (
     <div className="space-y-6">
@@ -113,6 +126,9 @@ export default function EstoquePage() {
             <Button className="rounded-full" onClick={startNew}>
               <PackagePlus className="mr-1.5 h-4 w-4" /> Novo item
             </Button>
+            <Button variant="outline" className="rounded-full" onClick={() => startMovement()}>
+              <RefreshCw className="mr-1.5 h-4 w-4" /> Movimentar
+            </Button>
           </div>
         }
       >
@@ -136,6 +152,9 @@ export default function EstoquePage() {
                   <span className="text-muted-foreground">Valor</span><span>{fmtBRL(item.quantity * item.unitCost)}</span>
                 </div>
                 <div className="mt-3 flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => startMovement(item)}>
+                    <RefreshCw className="mr-1 h-4 w-4" /> Movimentar
+                  </Button>
                   <Button size="sm" variant="ghost" onClick={() => { setEditing(item); setOpen(true); }}>
                     <Pencil className="mr-1 h-4 w-4" /> Editar
                   </Button>
@@ -181,6 +200,9 @@ export default function EstoquePage() {
                     <td className="px-4 py-3 text-muted-foreground">{item.expiryDate ? fmtDate(item.expiryDate) : "-"}</td>
                     <td className="px-4 py-3 text-muted-foreground">{propertyName}</td>
                     <td className="px-4 py-3 text-right">
+                      <Button aria-label="Movimentar item" size="icon" variant="ghost" onClick={() => startMovement(item)}>
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
                       <Button size="icon" variant="ghost" onClick={() => { setEditing(item); setOpen(true); }}>
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -196,11 +218,48 @@ export default function EstoquePage() {
         </div>
       </SectionCard>
 
+      <SectionCard
+        title="Histórico de movimentações"
+        subtitle={`${filteredMovements.length} registros operacionais`}
+        actions={
+          <Select value={movementType} onValueChange={(value) => setMovementType(value as "all" | StockMovementType)}>
+            <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os tipos</SelectItem>
+              {Object.entries(STOCK_MOVEMENT_TYPE_LABEL).map(([key, label]) => <SelectItem key={key} value={key}>{label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        }
+      >
+        {filteredMovements.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+            <History className="mx-auto mb-2 h-6 w-6" /> Nenhuma movimentação registrada.
+          </div>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {filteredMovements.map((movement) => {
+              const item = stockItems.find((stockItem) => stockItem.id === movement.stockItemId);
+              return (
+                <div key={movement.id} className="rounded-xl border border-border bg-card p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div><p className="font-semibold">{item?.name ?? "Item removido"}</p><p className="text-xs text-muted-foreground">{fmtDate(movement.date)} · {movement.responsible}</p></div>
+                    <MovementBadge type={movement.type} />
+                  </div>
+                  <p className="mt-3 text-sm">{fmtNum(movement.previousQuantity)} → <strong>{fmtNum(movement.newQuantity)}</strong> {item?.unit ?? ""}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{movement.reason}</p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </SectionCard>
+
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{editing ? "Editar item" : "Novo item de estoque"}</DialogTitle></DialogHeader>
           <StockForm
             initial={editing ?? emptyItem}
+            editing={Boolean(editing)}
             properties={properties}
             onSave={(data) => {
               if (editing) updateStockItem({ ...editing, ...data });
@@ -211,16 +270,34 @@ export default function EstoquePage() {
           />
         </DialogContent>
       </Dialog>
+
+      <Dialog open={movementOpen} onOpenChange={setMovementOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Registrar movimentação</DialogTitle></DialogHeader>
+          <MovementForm
+            initialItemId={movementItem?.id ?? ""}
+            stockItems={stockItems}
+            onSave={(movement) => {
+              const result = addStockMovement(movement);
+              if (!result.ok) return toast.error(result.error);
+              toast.success("Movimentação registrada");
+              setMovementOpen(false);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 function StockForm({
   initial,
+  editing,
   properties,
   onSave,
 }: {
   initial: Omit<StockItem, "id">;
+  editing: boolean;
   properties: ReturnType<typeof useFarm>["properties"];
   onSave: (item: Omit<StockItem, "id">) => void;
 }) {
@@ -250,7 +327,8 @@ function StockForm({
         </div>
         <div>
           <Label>Quantidade</Label>
-          <Input type="number" value={form.quantity} onChange={(event) => setForm({ ...form, quantity: Number(event.target.value) })} />
+          <Input type="number" disabled={editing} value={form.quantity} onChange={(event) => setForm({ ...form, quantity: Number(event.target.value) })} />
+          {editing && <p className="mt-1 text-[11px] text-muted-foreground">Use uma movimentação para alterar o saldo.</p>}
         </div>
         <div>
           <Label>Quantidade mínima</Label>
@@ -280,6 +358,43 @@ function StockForm({
         <Textarea value={form.notes ?? ""} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
       </div>
       <DialogFooter><Button type="submit" className="w-full">Salvar item</Button></DialogFooter>
+    </form>
+  );
+}
+
+function MovementBadge({ type }: { type: StockMovementType }) {
+  const Icon = type === "entrada" ? ArrowDownToLine : type === "saida" ? ArrowUpFromLine : RefreshCw;
+  return <Badge variant="secondary"><Icon className="mr-1 h-3 w-3" /> {STOCK_MOVEMENT_TYPE_LABEL[type]}</Badge>;
+}
+
+function MovementForm({ initialItemId, stockItems, onSave }: {
+  initialItemId: string;
+  stockItems: StockItem[];
+  onSave: (movement: Omit<StockMovement, "id" | "previousQuantity" | "newQuantity">) => void;
+}) {
+  const [form, setForm] = useState({
+    stockItemId: initialItemId || stockItems[0]?.id || "",
+    type: "entrada" as StockMovementType,
+    quantity: 0,
+    date: new Date().toISOString().slice(0, 10),
+    responsible: "",
+    reason: "",
+    notes: "",
+  });
+  const item = stockItems.find((stockItem) => stockItem.id === form.stockItemId);
+  return (
+    <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); onSave(form); }}>
+      <div><Label>Item</Label><Select value={form.stockItemId} onValueChange={(value) => setForm({ ...form, stockItemId: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{stockItems.map((stockItem) => <SelectItem key={stockItem.id} value={stockItem.id}>{stockItem.name}</SelectItem>)}</SelectContent></Select></div>
+      {item && <p className="rounded-lg bg-secondary/50 p-3 text-sm">Saldo atual: <strong>{fmtNum(item.quantity)} {item.unit}</strong></p>}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div><Label>Tipo</Label><Select value={form.type} onValueChange={(value) => setForm({ ...form, type: value as StockMovementType })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.entries(STOCK_MOVEMENT_TYPE_LABEL).map(([key, label]) => <SelectItem key={key} value={key}>{label}</SelectItem>)}</SelectContent></Select></div>
+        <div><Label>{form.type === "ajuste" ? "Novo saldo" : "Quantidade"}</Label><Input min="0" step="0.01" type="number" value={form.quantity} onChange={(event) => setForm({ ...form, quantity: Number(event.target.value) })} /></div>
+        <div><Label>Data</Label><Input required type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} /></div>
+        <div><Label>Responsável</Label><Input required value={form.responsible} onChange={(event) => setForm({ ...form, responsible: event.target.value })} /></div>
+      </div>
+      <div><Label>Motivo</Label><Input required placeholder="Ex: compra, consumo no talhão, inventário" value={form.reason} onChange={(event) => setForm({ ...form, reason: event.target.value })} /></div>
+      <div><Label>Observações</Label><Textarea value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></div>
+      <DialogFooter><Button className="w-full" type="submit">Registrar movimentação</Button></DialogFooter>
     </form>
   );
 }

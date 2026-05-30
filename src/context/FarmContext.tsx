@@ -9,6 +9,7 @@ import {
   Property,
   SanitaryRecord,
   StockItem,
+  StockMovement,
   Transaction,
 } from "@/data/types";
 import {
@@ -37,6 +38,7 @@ interface FarmCtx {
   transactions: Transaction[];
   events: FarmEvent[];
   stockItems: StockItem[];
+  stockMovements: StockMovement[];
   accounts: AccountEntry[];
   tasks: FarmTask[];
   sanitaryRecords: SanitaryRecord[];
@@ -60,6 +62,7 @@ interface FarmCtx {
   addStockItem: (item: Omit<StockItem, "id">) => void;
   updateStockItem: (item: StockItem) => void;
   removeStockItem: (id: string) => void;
+  addStockMovement: (movement: Omit<StockMovement, "id" | "previousQuantity" | "newQuantity">) => { ok: boolean; error?: string };
   addAccount: (account: Omit<AccountEntry, "id">) => void;
   updateAccount: (account: AccountEntry) => void;
   removeAccount: (id: string) => void;
@@ -85,6 +88,7 @@ interface FarmState {
   transactions: Transaction[];
   events: FarmEvent[];
   stockItems: StockItem[];
+  stockMovements: StockMovement[];
   accounts: AccountEntry[];
   tasks: FarmTask[];
   sanitaryRecords: SanitaryRecord[];
@@ -98,6 +102,7 @@ const seedState: FarmState = {
   transactions: seedTransactions,
   events: seedEvents,
   stockItems: seedStockItems,
+  stockMovements: [],
   accounts: seedAccounts,
   tasks: seedTasks,
   sanitaryRecords: seedSanitaryRecords,
@@ -123,6 +128,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   const [transactions, setTransactions] = useState<Transaction[]>(initialState.transactions);
   const [events, setEvents] = useState<FarmEvent[]>(initialState.events);
   const [stockItems, setStockItems] = useState<StockItem[]>(initialState.stockItems);
+  const [stockMovements, setStockMovements] = useState<StockMovement[]>(initialState.stockMovements);
   const [accounts, setAccounts] = useState<AccountEntry[]>(initialState.accounts);
   const [tasks, setTasks] = useState<FarmTask[]>(initialState.tasks);
   const [sanitaryRecords, setSanitaryRecords] = useState<SanitaryRecord[]>(initialState.sanitaryRecords);
@@ -137,12 +143,13 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       transactions,
       events,
       stockItems,
+      stockMovements,
       accounts,
       tasks,
       sanitaryRecords,
       cropManagementRecords,
     }));
-  }, [properties, crops, livestock, transactions, events, stockItems, accounts, tasks, sanitaryRecords, cropManagementRecords]);
+  }, [properties, crops, livestock, transactions, events, stockItems, stockMovements, accounts, tasks, sanitaryRecords, cropManagementRecords]);
 
   const value = useMemo<FarmCtx>(
     () => ({
@@ -152,6 +159,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       transactions,
       events,
       stockItems,
+      stockMovements,
       accounts,
       tasks,
       sanitaryRecords,
@@ -167,6 +175,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
         setTransactions((state) => state.filter((item) => item.propertyId !== id && !cropIds.includes(item.cropId ?? "") && !livestockIds.includes(item.livestockId ?? "")));
         setEvents((state) => state.filter((item) => item.propertyId !== id && !cropIds.includes(item.cropId ?? "") && !livestockIds.includes(item.livestockId ?? "")));
         setStockItems((state) => state.filter((item) => item.propertyId !== id));
+        setStockMovements((state) => state.filter((movement) => !stockItems.some((item) => item.propertyId === id && item.id === movement.stockItemId)));
         setAccounts((state) => state.filter((item) => item.propertyId !== id));
         setTasks((state) => state.filter((item) => item.propertyId !== id));
         setSanitaryRecords((state) => state.filter((item) => !livestockIds.includes(item.livestockId)));
@@ -198,7 +207,25 @@ export function FarmProvider({ children }: { children: ReactNode }) {
         setEvents((s) => s.map((x) => (x.id === id ? { ...x, done: !x.done } : x))),
       addStockItem: (item) => setStockItems((s) => [{ ...item, id: uid() }, ...s]),
       updateStockItem: (item) => setStockItems((s) => s.map((x) => (x.id === item.id ? item : x))),
-      removeStockItem: (id) => setStockItems((s) => s.filter((x) => x.id !== id)),
+      removeStockItem: (id) => {
+        setStockItems((state) => state.filter((item) => item.id !== id));
+        setStockMovements((state) => state.filter((movement) => movement.stockItemId !== id));
+      },
+      addStockMovement: (movement) => {
+        const item = stockItems.find((stockItem) => stockItem.id === movement.stockItemId);
+        if (!item) return { ok: false, error: "Item de estoque não encontrado." };
+        if (!movement.responsible.trim() || !movement.reason.trim()) return { ok: false, error: "Informe responsável e motivo." };
+        if (movement.quantity < 0 || (movement.type !== "ajuste" && movement.quantity === 0)) return { ok: false, error: "Informe uma quantidade válida." };
+        const newQuantity = movement.type === "entrada"
+          ? item.quantity + movement.quantity
+          : movement.type === "saida"
+            ? item.quantity - movement.quantity
+            : movement.quantity;
+        if (newQuantity < 0) return { ok: false, error: "Saída maior que o saldo disponível." };
+        setStockItems((state) => state.map((stockItem) => stockItem.id === item.id ? { ...stockItem, quantity: newQuantity } : stockItem));
+        setStockMovements((state) => [{ ...movement, id: uid(), previousQuantity: item.quantity, newQuantity }, ...state]);
+        return { ok: true };
+      },
       addAccount: (account) => setAccounts((s) => [{ ...account, id: uid() }, ...s]),
       updateAccount: (account) => setAccounts((s) => s.map((x) => (x.id === account.id ? account : x))),
       removeAccount: (id) => setAccounts((s) => s.filter((x) => x.id !== id)),
@@ -218,7 +245,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       removeCropManagementRecord: (id) =>
         setCropManagementRecords((s) => s.filter((x) => x.id !== id)),
     }),
-    [properties, crops, livestock, transactions, events, stockItems, accounts, tasks, sanitaryRecords, cropManagementRecords],
+    [properties, crops, livestock, transactions, events, stockItems, stockMovements, accounts, tasks, sanitaryRecords, cropManagementRecords],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

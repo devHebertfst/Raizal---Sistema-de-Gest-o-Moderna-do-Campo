@@ -172,6 +172,27 @@ export interface StockItem {
   notes?: string;
 }
 
+export type StockMovementType = "entrada" | "saida" | "ajuste";
+
+export interface StockMovement {
+  id: UUID;
+  stockItemId: UUID;
+  type: StockMovementType;
+  quantity: number;
+  previousQuantity: number;
+  newQuantity: number;
+  date: string;
+  responsible: string;
+  reason: string;
+  notes?: string;
+}
+
+export const STOCK_MOVEMENT_TYPE_LABEL: Record<StockMovementType, string> = {
+  entrada: "Entrada",
+  saida: "Saída",
+  ajuste: "Ajuste de saldo",
+};
+
 export const STOCK_CATEGORY_LABEL: Record<StockCategory, string> = {
   sementes: "Sementes",
   fertilizantes: "Fertilizantes",
