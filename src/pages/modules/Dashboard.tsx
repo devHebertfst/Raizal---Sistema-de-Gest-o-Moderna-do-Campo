@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import {
   AlertTriangle,
-  BarChart3,
   Beef,
   Boxes,
   CalendarClock,
@@ -208,7 +207,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Saldo operacional" value={fmtBRL(totalRevenue - totalExpense)} icon={Wallet} tone="primary" trend={{ value: "12%", up: true }} />
+        <StatCard label="Saldo operacional" value={fmtBRL(totalRevenue - totalExpense)} icon={Wallet} tone="primary" />
         <StatCard label="Receitas filtradas" value={fmtBRL(totalRevenue)} icon={TrendingUp} tone="success" />
         <StatCard label="Despesas filtradas" value={fmtBRL(totalExpense)} icon={TrendingDown} tone="danger" />
         <StatCard label="Contas pendentes" value={fmtBRL(pendingAccounts)} icon={Coins} tone="warning" />
@@ -308,7 +307,6 @@ export default function DashboardPage() {
       <SectionCard
         title="Visão rápida por propriedade"
         subtitle="Receita, custo, estoque e tarefas abertas"
-        actions={<Button variant="outline" className="rounded-full"><BarChart3 className="mr-1.5 h-4 w-4" /> Comparar</Button>}
       >
         <div className="grid gap-3 lg:grid-cols-3">
           {propertyOverview.map((entry) => (

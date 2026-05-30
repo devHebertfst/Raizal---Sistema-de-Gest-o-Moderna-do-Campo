@@ -62,6 +62,8 @@ export default function FinanceiroPage() {
   const [period, setPeriod] = useState<"all" | "30" | "90" | "year">("all");
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
+  const accountStatusOf = (account: typeof accounts[number]): AccountStatus =>
+    account.status !== "pago" && parseISODateLocal(account.dueDate) < new Date() ? "atrasado" : account.status;
 
   const filtered = useMemo(() => {
     const now = new Date();
@@ -72,6 +74,7 @@ export default function FinanceiroPage() {
       if (period !== "all") {
         const date = parseISODateLocal(item.date);
         const diff = (now.getTime() - date.getTime()) / 86400000;
+        if (diff < 0) return false;
         if (period === "30" && diff > 30) return false;
         if (period === "90" && diff > 90) return false;
         if (period === "year" && date.getFullYear() !== now.getFullYear()) return false;
@@ -82,14 +85,14 @@ export default function FinanceiroPage() {
 
   const filteredAccounts = accounts.filter((account) =>
     (accountType === "all" || account.type === accountType) &&
-    (accountStatus === "all" || account.status === accountStatus),
+    (accountStatus === "all" || accountStatusOf(account) === accountStatus),
   );
 
   const totalRevenue = filtered.filter((item) => item.type === "receita").reduce((sum, item) => sum + item.value, 0);
   const totalExpense = filtered.filter((item) => item.type === "despesa").reduce((sum, item) => sum + item.value, 0);
-  const pendingTotal = accounts.filter((item) => item.status === "pendente").reduce((sum, item) => sum + item.value, 0);
+  const pendingTotal = accounts.filter((item) => accountStatusOf(item) === "pendente").reduce((sum, item) => sum + item.value, 0);
   const paidTotal = accounts.filter((item) => item.status === "pago").reduce((sum, item) => sum + item.value, 0);
-  const overdueTotal = accounts.filter((item) => item.status === "atrasado").reduce((sum, item) => sum + item.value, 0);
+  const overdueTotal = accounts.filter((item) => accountStatusOf(item) === "atrasado").reduce((sum, item) => sum + item.value, 0);
   const dueSoon = accounts.filter((item) => {
     const diff = (parseISODateLocal(item.dueDate).getTime() - Date.now()) / 86400000;
     return item.status === "pendente" && diff >= 0 && diff <= 7;
@@ -151,8 +154,9 @@ export default function FinanceiroPage() {
             <tbody>
               {filteredAccounts.map((account) => {
                 const property = properties.find((item) => item.id === account.propertyId);
+                const effectiveStatus = accountStatusOf(account);
                 return (
-                  <tr key={account.id} className={cn("border-t border-border", account.status === "atrasado" && "bg-danger/5")}>
+                  <tr key={account.id} className={cn("border-t border-border", effectiveStatus === "atrasado" && "bg-danger/5")}>
                     <td className="px-4 py-3">
                       <p className="font-semibold text-foreground">{account.description}</p>
                       <p className="text-xs text-muted-foreground">{account.category}</p>
@@ -160,16 +164,16 @@ export default function FinanceiroPage() {
                     <td className="px-4 py-3">{ACCOUNT_TYPE_LABEL[account.type]}</td>
                     <td className="px-4 py-3">
                       <Badge className={cn(
-                        account.status === "pago" && "bg-success/15 text-success",
-                        account.status === "atrasado" && "bg-danger/15 text-danger",
-                        account.status === "pendente" && "bg-warning/15 text-warning",
-                      )}>{ACCOUNT_STATUS_LABEL[account.status]}</Badge>
+                        effectiveStatus === "pago" && "bg-success/15 text-success",
+                        effectiveStatus === "atrasado" && "bg-danger/15 text-danger",
+                        effectiveStatus === "pendente" && "bg-warning/15 text-warning",
+                      )}>{ACCOUNT_STATUS_LABEL[effectiveStatus]}</Badge>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{fmtDate(account.dueDate)}</td>
                     <td className="px-4 py-3 text-muted-foreground">{property?.name ?? "-"}</td>
                     <td className="px-4 py-3 text-right font-semibold">{fmtBRL(account.value)}</td>
                     <td className="px-4 py-3 text-right">
-                      {account.status !== "pago" && (
+                      {effectiveStatus !== "pago" && (
                         <Button size="sm" variant="outline" className="rounded-full" onClick={() => markAccountPaid(account.id)}>
                           Marcar pago
                         </Button>
@@ -267,7 +271,7 @@ export default function FinanceiroPage() {
                       {item.type === "receita" ? "+" : "-"} {fmtBRL(item.value)}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Button size="icon" variant="ghost" onClick={() => { removeTransaction(item.id); toast("Lançamento removido"); }}>
+                      <Button aria-label="Remover lançamento" size="icon" variant="ghost" onClick={() => { if (window.confirm("Remover este lançamento?")) { removeTransaction(item.id); toast("Lançamento removido"); } }}>
                         <Trash2 className="h-4 w-4 text-muted-foreground" />
                       </Button>
                     </td>

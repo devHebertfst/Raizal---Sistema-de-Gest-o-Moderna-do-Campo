@@ -167,7 +167,7 @@ export default function PlantacoesPage() {
                       <Badge className={`rounded-full font-medium ${statusTone[crop.status]}`}>{CROP_STATUS_LABEL[crop.status]}</Badge>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Button size="icon" variant="ghost" onClick={() => { removeCrop(crop.id); toast("Plantação removida"); }}>
+                      <Button aria-label="Remover plantação" size="icon" variant="ghost" onClick={() => { if (window.confirm("Remover esta plantação e os manejos vinculados?")) { removeCrop(crop.id); toast("Plantação removida"); } }}>
                         <Trash2 className="h-4 w-4 text-muted-foreground" />
                       </Button>
                     </td>
@@ -239,7 +239,7 @@ export default function PlantacoesPage() {
                     <td className="px-4 py-3 text-muted-foreground">{record.responsible}</td>
                     <td className="px-4 py-3 text-right font-semibold">{fmtBRL(record.cost)}</td>
                     <td className="px-4 py-3 text-right">
-                      <Button size="icon" variant="ghost" onClick={() => { removeCropManagementRecord(record.id); toast("Manejo removido"); }}>
+                      <Button aria-label="Remover manejo" size="icon" variant="ghost" onClick={() => { if (window.confirm("Remover este manejo?")) { removeCropManagementRecord(record.id); toast("Manejo removido"); } }}>
                         <Trash2 className="h-4 w-4 text-muted-foreground" />
                       </Button>
                     </td>

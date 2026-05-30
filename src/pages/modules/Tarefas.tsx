@@ -155,7 +155,7 @@ export default function TarefasPage() {
                       task={task}
                       propertyName={properties.find((item) => item.id === task.propertyId)?.name ?? "-"}
                       onEdit={() => { setEditing(task); setOpen(true); }}
-                      onRemove={() => { removeTask(task.id); toast("Tarefa removida"); }}
+                      onRemove={() => { if (window.confirm("Remover esta tarefa?")) { removeTask(task.id); toast("Tarefa removida"); } }}
                     />
                   ))}
                 </div>
@@ -190,7 +190,7 @@ export default function TarefasPage() {
                       <Button size="icon" variant="ghost" onClick={() => { setEditing(task); setOpen(true); }}>
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button size="icon" variant="ghost" onClick={() => removeTask(task.id)}>
+                      <Button aria-label="Remover tarefa" size="icon" variant="ghost" onClick={() => { if (window.confirm("Remover esta tarefa?")) removeTask(task.id); }}>
                         <Trash2 className="h-4 w-4 text-danger" />
                       </Button>
                     </td>
@@ -240,8 +240,8 @@ function TaskCard({
       <div className="mt-3 flex items-center justify-between">
         <span className="text-xs text-muted-foreground">{task.assignee}</span>
         <div>
-          <Button size="icon" variant="ghost" onClick={onEdit}><Pencil className="h-4 w-4" /></Button>
-          <Button size="icon" variant="ghost" onClick={onRemove}><Trash2 className="h-4 w-4 text-danger" /></Button>
+          <Button aria-label="Editar tarefa" size="icon" variant="ghost" onClick={onEdit}><Pencil className="h-4 w-4" /></Button>
+          <Button aria-label="Remover tarefa" size="icon" variant="ghost" onClick={onRemove}><Trash2 className="h-4 w-4 text-danger" /></Button>
         </div>
       </div>
     </div>

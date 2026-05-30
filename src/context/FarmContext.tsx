@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useContext, useMemo, useState } from "react";
+import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from "react";
 import {
   AccountEntry,
   Crop,
@@ -76,19 +76,73 @@ interface FarmCtx {
 }
 
 const Ctx = createContext<FarmCtx | null>(null);
+const STORAGE_KEY = "Raizal:farm";
+
+interface FarmState {
+  properties: Property[];
+  crops: Crop[];
+  livestock: Livestock[];
+  transactions: Transaction[];
+  events: FarmEvent[];
+  stockItems: StockItem[];
+  accounts: AccountEntry[];
+  tasks: FarmTask[];
+  sanitaryRecords: SanitaryRecord[];
+  cropManagementRecords: CropManagementRecord[];
+}
+
+const seedState: FarmState = {
+  properties: seedProperties,
+  crops: seedCrops,
+  livestock: seedLivestock,
+  transactions: seedTransactions,
+  events: seedEvents,
+  stockItems: seedStockItems,
+  accounts: seedAccounts,
+  tasks: seedTasks,
+  sanitaryRecords: seedSanitaryRecords,
+  cropManagementRecords: seedCropManagementRecords,
+};
+
+const loadState = (): FarmState => {
+  if (typeof window === "undefined") return seedState;
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return seedState;
+  try {
+    return { ...seedState, ...JSON.parse(raw) as FarmState };
+  } catch {
+    return seedState;
+  }
+};
 
 export function FarmProvider({ children }: { children: ReactNode }) {
-  const [properties, setProperties] = useState<Property[]>(seedProperties);
-  const [crops, setCrops] = useState<Crop[]>(seedCrops);
-  const [livestock, setLivestock] = useState<Livestock[]>(seedLivestock);
-  const [transactions, setTransactions] = useState<Transaction[]>(seedTransactions);
-  const [events, setEvents] = useState<FarmEvent[]>(seedEvents);
-  const [stockItems, setStockItems] = useState<StockItem[]>(seedStockItems);
-  const [accounts, setAccounts] = useState<AccountEntry[]>(seedAccounts);
-  const [tasks, setTasks] = useState<FarmTask[]>(seedTasks);
-  const [sanitaryRecords, setSanitaryRecords] = useState<SanitaryRecord[]>(seedSanitaryRecords);
+  const [initialState] = useState(loadState);
+  const [properties, setProperties] = useState<Property[]>(initialState.properties);
+  const [crops, setCrops] = useState<Crop[]>(initialState.crops);
+  const [livestock, setLivestock] = useState<Livestock[]>(initialState.livestock);
+  const [transactions, setTransactions] = useState<Transaction[]>(initialState.transactions);
+  const [events, setEvents] = useState<FarmEvent[]>(initialState.events);
+  const [stockItems, setStockItems] = useState<StockItem[]>(initialState.stockItems);
+  const [accounts, setAccounts] = useState<AccountEntry[]>(initialState.accounts);
+  const [tasks, setTasks] = useState<FarmTask[]>(initialState.tasks);
+  const [sanitaryRecords, setSanitaryRecords] = useState<SanitaryRecord[]>(initialState.sanitaryRecords);
   const [cropManagementRecords, setCropManagementRecords] =
-    useState<CropManagementRecord[]>(seedCropManagementRecords);
+    useState<CropManagementRecord[]>(initialState.cropManagementRecords);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      properties,
+      crops,
+      livestock,
+      transactions,
+      events,
+      stockItems,
+      accounts,
+      tasks,
+      sanitaryRecords,
+      cropManagementRecords,
+    }));
+  }, [properties, crops, livestock, transactions, events, stockItems, accounts, tasks, sanitaryRecords, cropManagementRecords]);
 
   const value = useMemo<FarmCtx>(
     () => ({
@@ -104,13 +158,36 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       cropManagementRecords,
       addProperty: (p) => setProperties((s) => [...s, { ...p, id: uid() }]),
       updateProperty: (p) => setProperties((s) => s.map((x) => (x.id === p.id ? p : x))),
-      removeProperty: (id) => setProperties((s) => s.filter((x) => x.id !== id)),
+      removeProperty: (id) => {
+        const cropIds = crops.filter((item) => item.propertyId === id).map((item) => item.id);
+        const livestockIds = livestock.filter((item) => item.propertyId === id).map((item) => item.id);
+        setProperties((state) => state.filter((item) => item.id !== id));
+        setCrops((state) => state.filter((item) => item.propertyId !== id));
+        setLivestock((state) => state.filter((item) => item.propertyId !== id));
+        setTransactions((state) => state.filter((item) => item.propertyId !== id && !cropIds.includes(item.cropId ?? "") && !livestockIds.includes(item.livestockId ?? "")));
+        setEvents((state) => state.filter((item) => item.propertyId !== id && !cropIds.includes(item.cropId ?? "") && !livestockIds.includes(item.livestockId ?? "")));
+        setStockItems((state) => state.filter((item) => item.propertyId !== id));
+        setAccounts((state) => state.filter((item) => item.propertyId !== id));
+        setTasks((state) => state.filter((item) => item.propertyId !== id));
+        setSanitaryRecords((state) => state.filter((item) => !livestockIds.includes(item.livestockId)));
+        setCropManagementRecords((state) => state.filter((item) => !cropIds.includes(item.cropId)));
+      },
       addCrop: (c) => setCrops((s) => [...s, { ...c, id: uid() }]),
       updateCrop: (c) => setCrops((s) => s.map((x) => (x.id === c.id ? c : x))),
-      removeCrop: (id) => setCrops((s) => s.filter((x) => x.id !== id)),
+      removeCrop: (id) => {
+        setCrops((state) => state.filter((item) => item.id !== id));
+        setTransactions((state) => state.filter((item) => item.cropId !== id));
+        setEvents((state) => state.filter((item) => item.cropId !== id));
+        setCropManagementRecords((state) => state.filter((item) => item.cropId !== id));
+      },
       addLivestock: (l) => setLivestock((s) => [...s, { ...l, id: uid() }]),
       updateLivestock: (l) => setLivestock((s) => s.map((x) => (x.id === l.id ? l : x))),
-      removeLivestock: (id) => setLivestock((s) => s.filter((x) => x.id !== id)),
+      removeLivestock: (id) => {
+        setLivestock((state) => state.filter((item) => item.id !== id));
+        setTransactions((state) => state.filter((item) => item.livestockId !== id));
+        setEvents((state) => state.filter((item) => item.livestockId !== id));
+        setSanitaryRecords((state) => state.filter((item) => item.livestockId !== id));
+      },
       addTransaction: (t) => setTransactions((s) => [{ ...t, id: uid() }, ...s]),
       updateTransaction: (t) => setTransactions((s) => s.map((x) => (x.id === t.id ? t : x))),
       removeTransaction: (id) => setTransactions((s) => s.filter((x) => x.id !== id)),

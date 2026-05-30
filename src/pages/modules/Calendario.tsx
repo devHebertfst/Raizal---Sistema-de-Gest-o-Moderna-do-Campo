@@ -343,8 +343,10 @@ export default function CalendarioPage() {
                         size="icon"
                         variant="ghost"
                         onClick={() => {
-                          removeEvent(event.id);
-                          toast("Evento removido");
+                          if (window.confirm("Remover este evento?")) {
+                            removeEvent(event.id);
+                            toast("Evento removido");
+                          }
                         }}
                       >
                         <Trash2 className="h-4 w-4 text-muted-foreground" />

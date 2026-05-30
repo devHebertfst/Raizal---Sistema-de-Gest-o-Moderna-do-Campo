@@ -173,7 +173,7 @@ export default function EstoquePage() {
                       <Button size="icon" variant="ghost" onClick={() => { setEditing(item); setOpen(true); }}>
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button size="icon" variant="ghost" onClick={() => { removeStockItem(item.id); toast("Item removido"); }}>
+                      <Button aria-label="Remover item" size="icon" variant="ghost" onClick={() => { if (window.confirm("Remover este item do estoque?")) { removeStockItem(item.id); toast("Item removido"); } }}>
                         <Trash2 className="h-4 w-4 text-danger" />
                       </Button>
                     </td>

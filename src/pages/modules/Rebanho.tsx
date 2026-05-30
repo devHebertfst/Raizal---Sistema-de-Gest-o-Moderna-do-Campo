@@ -156,7 +156,7 @@ export default function RebanhoPage() {
                       <Badge className={`rounded-full font-medium ${item.status === "ativo" ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>{item.status}</Badge>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Button size="icon" variant="ghost" onClick={() => { removeLivestock(item.id); toast("Lote removido"); }}>
+                      <Button aria-label="Remover lote" size="icon" variant="ghost" onClick={() => { if (window.confirm("Remover este lote e o histórico sanitário vinculado?")) { removeLivestock(item.id); toast("Lote removido"); } }}>
                         <Trash2 className="h-4 w-4 text-muted-foreground" />
                       </Button>
                     </td>
@@ -225,7 +225,7 @@ export default function RebanhoPage() {
                     <td className="px-4 py-3 text-muted-foreground">{record.responsible}</td>
                     <td className="px-4 py-3 text-right font-semibold">{fmtBRL(record.cost)}</td>
                     <td className="px-4 py-3 text-right">
-                      <Button size="icon" variant="ghost" onClick={() => { removeSanitaryRecord(record.id); toast("Procedimento removido"); }}>
+                      <Button aria-label="Remover procedimento" size="icon" variant="ghost" onClick={() => { if (window.confirm("Remover este procedimento?")) { removeSanitaryRecord(record.id); toast("Procedimento removido"); } }}>
                         <Trash2 className="h-4 w-4 text-muted-foreground" />
                       </Button>
                     </td>

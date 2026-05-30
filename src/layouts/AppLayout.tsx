@@ -1,8 +1,7 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/agro/AppSidebar";
-import { Bell, ChevronRight, LogOut, Moon, Search, Sun } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { ChevronRight, LogOut, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useTheme } from "@/context/ThemeContext";
@@ -61,19 +60,8 @@ export default function AppLayout() {
               </div>
 
               <div className="ml-auto flex items-center gap-2">
-                <div className="relative hidden lg:block">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Buscar talhao, lote, lancamento..."
-                    className="h-9 w-80 rounded-full border-border/80 bg-card/80 pl-9 text-sm shadow-sm"
-                  />
-                </div>
                 <Button variant="ghost" size="icon" className="rounded-full" onClick={toggle} aria-label="Alternar tema">
                   {theme === "dark" ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
-                </Button>
-                <Button variant="ghost" size="icon" className="relative rounded-full" aria-label="Alertas">
-                  <Bell className="h-[18px] w-[18px]" />
-                  <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-danger ring-2 ring-background" />
                 </Button>
                 <div className="hidden items-center gap-2 rounded-full border border-border/80 bg-card/90 py-1 pl-1 pr-3 shadow-sm sm:flex">
                   <Avatar className="h-7 w-7">

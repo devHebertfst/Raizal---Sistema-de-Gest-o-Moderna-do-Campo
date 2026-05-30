@@ -1,39 +1,39 @@
+import { lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
-import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { RedirectIfAuthed, RequireAuth } from "@/components/agro/RouteGuards";
-import Index from "./pages/Index.tsx";
-import LoginPage from "./pages/Login";
-import AdminPage from "./pages/Admin";
-import NotFound from "./pages/NotFound.tsx";
 import AppLayout from "./layouts/AppLayout";
-import FinanceiroPage from "./pages/modules/Financeiro";
-import PropriedadesPage from "./pages/modules/Propriedades";
-import PlantacoesPage from "./pages/modules/Plantacoes";
-import RebanhoPage from "./pages/modules/Rebanho";
-import RelatoriosPage from "./pages/modules/Relatorios";
-import CalendarioPage from "./pages/modules/Calendario";
-import EstoquePage from "./pages/modules/Estoque";
-import TarefasPage from "./pages/modules/Tarefas";
-import CentroControlePage from "./pages/modules/CentroControle";
 import { FarmProvider } from "./context/FarmContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { AuthProvider } from "./context/AuthContext";
 
 const queryClient = new QueryClient();
+const Index = lazy(() => import("./pages/Index.tsx"));
+const LoginPage = lazy(() => import("./pages/Login"));
+const AdminPage = lazy(() => import("./pages/Admin"));
+const NotFound = lazy(() => import("./pages/NotFound.tsx"));
+const FinanceiroPage = lazy(() => import("./pages/modules/Financeiro"));
+const PropriedadesPage = lazy(() => import("./pages/modules/Propriedades"));
+const PlantacoesPage = lazy(() => import("./pages/modules/Plantacoes"));
+const RebanhoPage = lazy(() => import("./pages/modules/Rebanho"));
+const RelatoriosPage = lazy(() => import("./pages/modules/Relatorios"));
+const CalendarioPage = lazy(() => import("./pages/modules/Calendario"));
+const EstoquePage = lazy(() => import("./pages/modules/Estoque"));
+const TarefasPage = lazy(() => import("./pages/modules/Tarefas"));
+const CentroControlePage = lazy(() => import("./pages/modules/CentroControle"));
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
       <TooltipProvider>
-        <Toaster />
         <Sonner />
         <AuthProvider>
           <FarmProvider>
             <BrowserRouter>
-              <Routes>
+              <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Carregando...</div>}>
+                <Routes>
                 <Route element={<RedirectIfAuthed />}>
                   <Route path="/login" element={<LoginPage />} />
                 </Route>
@@ -55,7 +55,8 @@ const App = () => (
                   </Route>
                 </Route>
                 <Route path="*" element={<NotFound />} />
-              </Routes>
+                </Routes>
+              </Suspense>
             </BrowserRouter>
           </FarmProvider>
         </AuthProvider>
