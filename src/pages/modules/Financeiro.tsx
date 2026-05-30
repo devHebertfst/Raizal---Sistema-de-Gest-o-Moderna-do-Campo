@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import {
+  AlertTriangle,
+  CalendarClock,
   CheckCircle2,
   Clock,
   Pencil,
@@ -10,6 +12,15 @@ import {
   Trash2,
   Wallet,
 } from "lucide-react";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { fmtBRL, fmtDate, useFarm } from "@/context/FarmContext";
 import {
   ACCOUNT_STATUS_LABEL,
@@ -47,6 +58,15 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { cn, parseISODateLocal } from "@/lib/utils";
+import { CHART_DANGER, CHART_PRIMARY } from "@/lib/chart-colors";
+
+type ProjectionHorizon = "30" | "60" | "90";
+const tooltipStyle = {
+  borderRadius: 12,
+  border: "1px solid hsl(var(--border))",
+  background: "hsl(var(--card))",
+};
+const tooltipTextStyle = { color: "hsl(var(--foreground))" };
 
 export default function FinanceiroPage() {
   const {
@@ -71,6 +91,8 @@ export default function FinanceiroPage() {
   const [open, setOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<AccountEntry | null>(null);
+  const [projectionHorizon, setProjectionHorizon] = useState<ProjectionHorizon>("30");
+  const [projectionProperty, setProjectionProperty] = useState("all");
   const accountStatusOf = (account: typeof accounts[number]): AccountStatus =>
     account.status !== "pago" && parseISODateLocal(account.dueDate) < new Date() ? "atrasado" : account.status;
 
@@ -106,6 +128,32 @@ export default function FinanceiroPage() {
     const diff = (parseISODateLocal(item.dueDate).getTime() - Date.now()) / 86400000;
     return item.status === "pendente" && diff >= 0 && diff <= 7;
   });
+  const projection = useMemo(() => {
+    const today = new Date();
+    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const limit = new Date(start);
+    limit.setDate(limit.getDate() + Number(projectionHorizon));
+    const byProperty = (propertyId?: string) => projectionProperty === "all" || propertyId === projectionProperty;
+    const initialBalance = transactions
+      .filter((item) => byProperty(item.propertyId) && parseISODateLocal(item.date) <= start)
+      .reduce((sum, item) => sum + (item.type === "receita" ? item.value : -item.value), 0);
+    const commitments = accounts
+      .filter((account) => account.status !== "pago" && byProperty(account.propertyId) && parseISODateLocal(account.dueDate) <= limit)
+      .sort((first, second) => first.dueDate.localeCompare(second.dueDate));
+    const totals = commitments.reduce((acc, account) => {
+      if (account.type === "receber") acc.income += account.value;
+      else acc.expense += account.value;
+      return acc;
+    }, { income: 0, expense: 0 });
+    let balance = initialBalance;
+    const points = [{ date: start.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }), saldo: balance }];
+    commitments.forEach((account) => {
+      balance += account.type === "receber" ? account.value : -account.value;
+      points.push({ date: fmtDate(account.dueDate).slice(0, 5), saldo: balance });
+    });
+    points.push({ date: limit.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }), saldo: balance });
+    return { initialBalance, finalBalance: balance, income: totals.income, expense: totals.expense, commitments, points, negative: points.some((point) => point.saldo < 0) };
+  }, [accounts, projectionHorizon, projectionProperty, transactions]);
 
   return (
     <div className="space-y-6">
@@ -121,6 +169,63 @@ export default function FinanceiroPage() {
         <StatCard label="Atrasadas" value={fmtBRL(overdueTotal)} icon={Clock} tone="danger" />
         <StatCard label="Vencem em 7 dias" value={String(dueSoon.length)} icon={Clock} tone="accent" />
       </div>
+
+      <SectionCard
+        title="Fluxo de caixa projetado"
+        subtitle="Previsão baseada em contas pendentes e vencidas"
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Select value={projectionProperty} onValueChange={setProjectionProperty}>
+              <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas propriedades</SelectItem>
+                {properties.map((property) => <SelectItem key={property.id} value={property.id}>{property.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={projectionHorizon} onValueChange={(value) => setProjectionHorizon(value as ProjectionHorizon)}>
+              <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="30">30 dias</SelectItem><SelectItem value="60">60 dias</SelectItem><SelectItem value="90">90 dias</SelectItem></SelectContent>
+            </Select>
+          </div>
+        }
+      >
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <ProjectionStat label="Saldo inicial" value={fmtBRL(projection.initialBalance)} />
+          <ProjectionStat label="Entradas previstas" value={fmtBRL(projection.income)} tone="success" />
+          <ProjectionStat label="Saídas previstas" value={fmtBRL(projection.expense)} tone="danger" />
+          <ProjectionStat label="Saldo projetado" value={fmtBRL(projection.finalBalance)} tone={projection.finalBalance < 0 ? "danger" : "success"} />
+        </div>
+        {projection.negative && <div className="mt-4 flex items-center gap-2 rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger"><AlertTriangle className="h-4 w-4 shrink-0" /> O caixa fica negativo dentro do período selecionado.</div>}
+        <div className="mt-5 h-72">
+          <ResponsiveContainer>
+            <LineChart data={projection.points}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+              <XAxis dataKey="date" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+              <YAxis tickFormatter={(value) => `${(Number(value) / 1000).toFixed(0)}k`} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+              <Tooltip formatter={(value: number) => fmtBRL(value)} contentStyle={tooltipStyle} itemStyle={tooltipTextStyle} labelStyle={tooltipTextStyle} />
+              <Line type="monotone" dataKey="saldo" name="Saldo projetado" stroke={projection.negative ? CHART_DANGER : CHART_PRIMARY} strokeWidth={3} dot={{ r: 3 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Próximos compromissos" subtitle={`${projection.commitments.length} lançamentos na projeção`}>
+        {projection.commitments.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">Nenhum compromisso previsto para o período.</p>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {projection.commitments.map((account) => (
+              <div key={account.id} className="rounded-xl border border-border bg-card p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div><p className="font-semibold">{account.description}</p><p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground"><CalendarClock className="h-3.5 w-3.5" /> {fmtDate(account.dueDate)}</p></div>
+                  <Badge className={account.type === "receber" ? "bg-success/15 text-success" : "bg-danger/15 text-danger"}>{ACCOUNT_TYPE_LABEL[account.type]}</Badge>
+                </div>
+                <p className={cn("mt-3 font-bold", account.type === "receber" ? "text-success" : "text-danger")}>{account.type === "receber" ? "+" : "-"} {fmtBRL(account.value)}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </SectionCard>
 
       <SectionCard
         title="Contas a pagar e receber"
@@ -350,6 +455,15 @@ export default function FinanceiroPage() {
           />
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function ProjectionStat({ label, value, tone = "muted" }: { label: string; value: string; tone?: "muted" | "success" | "danger" }) {
+  return (
+    <div className="rounded-xl border border-border bg-secondary/30 p-4">
+      <p className="text-xs uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className={cn("mt-2 text-lg font-bold", tone === "success" && "text-success", tone === "danger" && "text-danger")}>{value}</p>
     </div>
   );
 }
