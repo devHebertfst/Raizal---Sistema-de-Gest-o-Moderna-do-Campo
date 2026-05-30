@@ -15,6 +15,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { ConfirmAction } from "@/components/agro/ConfirmAction";
+import { taskColumnTitle } from "@/lib/task-board";
 
 const empty: Omit<Property, "id"> = {
   name: "", location: "", totalHa: 0, cultivableHa: 0, pastureHa: 0, freeHa: 0, notes: "",
@@ -150,7 +151,7 @@ export default function PropriedadesPage() {
 }
 
 function PropertyDetails({ property }: { property: Property }) {
-  const { crops, livestock, stockItems, transactions, tasks } = useFarm();
+  const { crops, livestock, stockItems, transactions, tasks, taskColumns } = useFarm();
   const propertyCrops = crops.filter((crop) => crop.propertyId === property.id);
   const propertyLivestock = livestock.filter((item) => item.propertyId === property.id);
   const propertyStock = stockItems.filter((item) => item.propertyId === property.id);
@@ -196,7 +197,7 @@ function PropertyDetails({ property }: { property: Property }) {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <DetailList title="Estoque relacionado" items={propertyStock.map((item) => `${item.name}: ${fmtNum(item.quantity)} ${item.unit}`)} />
-        <DetailList title="Tarefas relacionadas" items={propertyTasks.map((task) => `${task.title} - ${task.status.replace("_", " ")}`)} />
+        <DetailList title="Tarefas relacionadas" items={propertyTasks.map((task) => `${task.title} - ${taskColumnTitle(task, taskColumns)}`)} />
       </div>
     </div>
   );

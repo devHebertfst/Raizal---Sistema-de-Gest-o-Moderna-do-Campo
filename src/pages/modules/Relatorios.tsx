@@ -8,13 +8,13 @@ import {
   CATEGORY_LABEL,
   EVENT_CATEGORY_LABEL,
   STOCK_CATEGORY_LABEL,
-  TASK_STATUS_LABEL,
 } from "@/data/types";
 import { SectionCard } from "@/components/agro/SectionCard";
 import { StatCard } from "@/components/agro/StatCard";
 import { Beef, Boxes, CheckSquare, Coins, Sprout, TrendingUp } from "lucide-react";
 import { CHART_ACCENT, CHART_DANGER, CHART_PALETTE, CHART_PRIMARY, CHART_PRIMARY_SOFT } from "@/lib/chart-colors";
 import { parseISODateLocal } from "@/lib/utils";
+import { taskColumnTitle } from "@/lib/task-board";
 
 const COLORS = CHART_PALETTE;
 const tooltipStyle = {
@@ -35,6 +35,7 @@ export default function RelatoriosPage() {
     stockItems,
     accounts,
     tasks,
+    taskColumns,
     events,
     sanitaryRecords,
     cropManagementRecords,
@@ -83,10 +84,11 @@ export default function RelatoriosPage() {
 
   const taskStatusData = Object.entries(
     tasks.reduce<Record<string, number>>((acc, task) => {
-      acc[task.status] = (acc[task.status] ?? 0) + 1;
+      const status = taskColumnTitle(task, taskColumns);
+      acc[status] = (acc[status] ?? 0) + 1;
       return acc;
     }, {}),
-  ).map(([key, value]) => ({ name: TASK_STATUS_LABEL[key as keyof typeof TASK_STATUS_LABEL] ?? key, value }));
+  ).map(([name, value]) => ({ name, value }));
 
   const eventData = Object.entries(
     events.reduce<Record<string, number>>((acc, event) => {

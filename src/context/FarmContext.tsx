@@ -10,6 +10,7 @@ import {
   SanitaryRecord,
   StockItem,
   StockMovement,
+  TaskColumn,
   Transaction,
 } from "@/data/types";
 import {
@@ -25,6 +26,7 @@ import {
   seedTransactions,
 } from "@/data/seed";
 import { formatISODateBR } from "@/lib/utils";
+import { DEFAULT_TASK_COLUMNS, normalizeTaskColumns, reorderTaskColumns } from "@/lib/task-board";
 
 const uid = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -41,6 +43,7 @@ interface FarmCtx {
   stockMovements: StockMovement[];
   accounts: AccountEntry[];
   tasks: FarmTask[];
+  taskColumns: TaskColumn[];
   sanitaryRecords: SanitaryRecord[];
   cropManagementRecords: CropManagementRecord[];
   addProperty: (p: Omit<Property, "id">) => void;
@@ -70,6 +73,10 @@ interface FarmCtx {
   addTask: (task: Omit<FarmTask, "id">) => void;
   updateTask: (task: FarmTask) => void;
   removeTask: (id: string) => void;
+  addTaskColumn: (title: string) => void;
+  updateTaskColumn: (column: TaskColumn) => void;
+  removeTaskColumn: (id: string) => void;
+  reorderTaskColumns: (sourceId: string, targetId: string) => void;
   addSanitaryRecord: (record: Omit<SanitaryRecord, "id">) => void;
   updateSanitaryRecord: (record: SanitaryRecord) => void;
   removeSanitaryRecord: (id: string) => void;
@@ -91,6 +98,7 @@ interface FarmState {
   stockMovements: StockMovement[];
   accounts: AccountEntry[];
   tasks: FarmTask[];
+  taskColumns: TaskColumn[];
   sanitaryRecords: SanitaryRecord[];
   cropManagementRecords: CropManagementRecord[];
 }
@@ -105,6 +113,7 @@ const seedState: FarmState = {
   stockMovements: [],
   accounts: seedAccounts,
   tasks: seedTasks,
+  taskColumns: DEFAULT_TASK_COLUMNS,
   sanitaryRecords: seedSanitaryRecords,
   cropManagementRecords: seedCropManagementRecords,
 };
@@ -114,7 +123,8 @@ const loadState = (): FarmState => {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return seedState;
   try {
-    return { ...seedState, ...JSON.parse(raw) as FarmState };
+    const parsed = JSON.parse(raw) as Partial<FarmState>;
+    return { ...seedState, ...parsed, taskColumns: normalizeTaskColumns(parsed.taskColumns) };
   } catch {
     return seedState;
   }
@@ -131,6 +141,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   const [stockMovements, setStockMovements] = useState<StockMovement[]>(initialState.stockMovements);
   const [accounts, setAccounts] = useState<AccountEntry[]>(initialState.accounts);
   const [tasks, setTasks] = useState<FarmTask[]>(initialState.tasks);
+  const [taskColumns, setTaskColumns] = useState<TaskColumn[]>(initialState.taskColumns);
   const [sanitaryRecords, setSanitaryRecords] = useState<SanitaryRecord[]>(initialState.sanitaryRecords);
   const [cropManagementRecords, setCropManagementRecords] =
     useState<CropManagementRecord[]>(initialState.cropManagementRecords);
@@ -146,10 +157,11 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       stockMovements,
       accounts,
       tasks,
+      taskColumns,
       sanitaryRecords,
       cropManagementRecords,
     }));
-  }, [properties, crops, livestock, transactions, events, stockItems, stockMovements, accounts, tasks, sanitaryRecords, cropManagementRecords]);
+  }, [properties, crops, livestock, transactions, events, stockItems, stockMovements, accounts, tasks, taskColumns, sanitaryRecords, cropManagementRecords]);
 
   const value = useMemo<FarmCtx>(
     () => ({
@@ -162,6 +174,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       stockMovements,
       accounts,
       tasks,
+      taskColumns,
       sanitaryRecords,
       cropManagementRecords,
       addProperty: (p) => setProperties((s) => [...s, { ...p, id: uid() }]),
@@ -234,6 +247,13 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       addTask: (task) => setTasks((s) => [{ ...task, id: uid() }, ...s]),
       updateTask: (task) => setTasks((s) => s.map((x) => (x.id === task.id ? task : x))),
       removeTask: (id) => setTasks((s) => s.filter((x) => x.id !== id)),
+      addTaskColumn: (title) => setTaskColumns((state) => [...state, { id: uid(), title }]),
+      updateTaskColumn: (column) => setTaskColumns((state) => state.map((item) => item.id === column.id ? column : item)),
+      removeTaskColumn: (id) => {
+        setTaskColumns((state) => state.filter((item) => item.id !== id));
+        setTasks((state) => state.map((task) => task.columnId === id ? { ...task, status: "pendente", columnId: undefined } : task));
+      },
+      reorderTaskColumns: (sourceId, targetId) => setTaskColumns((state) => reorderTaskColumns(state, sourceId, targetId)),
       addSanitaryRecord: (record) => setSanitaryRecords((s) => [{ ...record, id: uid() }, ...s]),
       updateSanitaryRecord: (record) =>
         setSanitaryRecords((s) => s.map((x) => (x.id === record.id ? record : x))),
@@ -245,7 +265,7 @@ export function FarmProvider({ children }: { children: ReactNode }) {
       removeCropManagementRecord: (id) =>
         setCropManagementRecords((s) => s.filter((x) => x.id !== id)),
     }),
-    [properties, crops, livestock, transactions, events, stockItems, stockMovements, accounts, tasks, sanitaryRecords, cropManagementRecords],
+    [properties, crops, livestock, transactions, events, stockItems, stockMovements, accounts, tasks, taskColumns, sanitaryRecords, cropManagementRecords],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

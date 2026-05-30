@@ -244,6 +244,13 @@ export interface FarmTask {
   propertyId?: UUID;
   sector: TaskSector;
   status: TaskStatus;
+  columnId?: UUID;
+}
+
+export interface TaskColumn {
+  id: UUID;
+  title: string;
+  fixedStatus?: TaskStatus;
 }
 
 export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {

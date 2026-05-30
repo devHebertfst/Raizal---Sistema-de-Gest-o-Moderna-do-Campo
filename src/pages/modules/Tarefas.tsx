@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
-import { CheckCircle2, Clock, ListChecks, Pencil, Plus, Trash2 } from "lucide-react";
+import { DragEvent, useEffect, useMemo, useState } from "react";
+import { CheckCircle2, Clock, GripVertical, ListChecks, Pencil, Plus, Trash2 } from "lucide-react";
 import { fmtDate, useFarm } from "@/context/FarmContext";
 import {
   FarmTask,
   TASK_SECTOR_LABEL,
   TASK_STATUS_LABEL,
+  TaskColumn,
   TaskPriority,
   TaskSector,
   TaskStatus,
@@ -33,8 +34,8 @@ import {
 import { cn, parseISODateLocal } from "@/lib/utils";
 import { toast } from "sonner";
 import { ConfirmAction } from "@/components/agro/ConfirmAction";
+import { moveTaskToColumn, taskColumnId, taskColumnTitle } from "@/lib/task-board";
 
-const statusOrder: TaskStatus[] = ["pendente", "em_andamento", "concluida"];
 const priorityTone: Record<TaskPriority, string> = {
   baixa: "bg-muted text-muted-foreground",
   media: "bg-warning/15 text-warning",
@@ -53,21 +54,25 @@ const emptyTask: Omit<FarmTask, "id"> = {
 };
 
 export default function TarefasPage() {
-  const { tasks, properties, addTask, updateTask, removeTask } = useFarm();
+  const { tasks, taskColumns, properties, addTask, updateTask, removeTask, addTaskColumn, updateTaskColumn, removeTaskColumn, reorderTaskColumns } = useFarm();
   const [view, setView] = useState<"kanban" | "lista">("kanban");
-  const [status, setStatus] = useState<"all" | TaskStatus>("all");
+  const [status, setStatus] = useState("all");
   const [priority, setPriority] = useState<"all" | TaskPriority>("all");
   const [property, setProperty] = useState("all");
   const [assignee, setAssignee] = useState("all");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<FarmTask | null>(null);
+  const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
+  const [draggingColumnId, setDraggingColumnId] = useState<string | null>(null);
+  const [columnOpen, setColumnOpen] = useState(false);
+  const [editingColumn, setEditingColumn] = useState<TaskColumn | null>(null);
 
   const assignees = Array.from(new Set(tasks.map((task) => task.assignee))).filter(Boolean);
   const today = new Date();
 
   const filtered = useMemo(
     () => tasks.filter((task) =>
-      (status === "all" || task.status === status) &&
+      (status === "all" || taskColumnId(task) === status) &&
       (priority === "all" || task.priority === priority) &&
       (property === "all" || task.propertyId === property) &&
       (assignee === "all" || task.assignee === assignee),
@@ -82,6 +87,27 @@ export default function TarefasPage() {
     else addTask(data);
     toast.success(editing ? "Tarefa atualizada" : "Tarefa criada");
     setOpen(false);
+  };
+
+  const moveTask = (columnId: string) => {
+    const task = tasks.find((item) => item.id === draggingTaskId);
+    if (!task || taskColumnId(task) === columnId) return;
+    updateTask(moveTaskToColumn(task, columnId));
+    toast.success("Tarefa movida");
+  };
+
+  const moveColumn = (targetId: string) => {
+    if (!draggingColumnId || draggingColumnId === targetId) return;
+    reorderTaskColumns(draggingColumnId, targetId);
+  };
+
+  const saveColumn = (title: string) => {
+    const normalizedTitle = title.trim();
+    if (!normalizedTitle) return;
+    if (editingColumn) updateTaskColumn({ ...editingColumn, title: normalizedTitle });
+    else addTaskColumn(normalizedTitle);
+    toast.success(editingColumn ? "Coluna atualizada" : "Coluna criada");
+    setColumnOpen(false);
   };
 
   return (
@@ -105,11 +131,11 @@ export default function TarefasPage() {
                 <SelectItem value="lista">Lista</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={status} onValueChange={(value) => setStatus(value as "all" | TaskStatus)}>
+            <Select value={status} onValueChange={setStatus}>
               <SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos status</SelectItem>
-                {Object.entries(TASK_STATUS_LABEL).map(([key, label]) => <SelectItem key={key} value={key}>{label}</SelectItem>)}
+                {taskColumns.map((column) => <SelectItem key={column.id} value={column.id}>{column.title}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={priority} onValueChange={(value) => setPriority(value as "all" | TaskPriority)}>
@@ -138,25 +164,67 @@ export default function TarefasPage() {
             <Button className="rounded-full" onClick={() => { setEditing(null); setOpen(true); }}>
               <Plus className="mr-1.5 h-4 w-4" /> Nova tarefa
             </Button>
+            {view === "kanban" && (
+              <Button variant="outline" className="rounded-full" onClick={() => { setEditingColumn(null); setColumnOpen(true); }}>
+                <Plus className="mr-1.5 h-4 w-4" /> Nova coluna
+              </Button>
+            )}
           </div>
         }
       >
         {view === "kanban" ? (
-          <div className="grid gap-4 lg:grid-cols-3">
-            {statusOrder.map((column) => (
-              <div key={column} className="rounded-xl border border-border bg-secondary/30 p-3">
-                <div className="mb-3 flex items-center justify-between">
-                  <h3 className="font-display text-sm font-bold text-foreground">{TASK_STATUS_LABEL[column]}</h3>
-                  <Badge variant="secondary">{filtered.filter((task) => task.status === column).length}</Badge>
+          <div className="flex gap-4 overflow-x-auto pb-2">
+            {taskColumns.map((column) => (
+              <div
+                key={column.id}
+                className="min-h-52 w-[min(85vw,20rem)] shrink-0 rounded-xl border border-border bg-secondary/30 p-3"
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  if (draggingTaskId) moveTask(column.id);
+                  else moveColumn(column.id);
+                }}
+              >
+                <div
+                  draggable
+                  onDragStart={(event) => {
+                    event.dataTransfer.effectAllowed = "move";
+                    setDraggingTaskId(null);
+                    setDraggingColumnId(column.id);
+                  }}
+                  onDragEnd={() => setDraggingColumnId(null)}
+                  className="mb-3 flex cursor-grab items-center justify-between active:cursor-grabbing"
+                >
+                  <h3 className="flex items-center gap-1 font-display text-sm font-bold text-foreground"><GripVertical className="h-4 w-4 text-muted-foreground" />{column.title}</h3>
+                  <div className="flex items-center gap-1">
+                    <Badge variant="secondary">{filtered.filter((task) => taskColumnId(task) === column.id).length}</Badge>
+                    {!column.fixedStatus && (
+                      <>
+                        <Button aria-label="Renomear coluna" size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditingColumn(column); setColumnOpen(true); }}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <ConfirmAction description="As tarefas desta coluna voltarão para Pendente." onConfirm={() => { removeTaskColumn(column.id); toast.success("Coluna excluída"); }}>
+                          <Button aria-label="Excluir coluna" size="icon" variant="ghost" className="h-7 w-7"><Trash2 className="h-3.5 w-3.5 text-danger" /></Button>
+                        </ConfirmAction>
+                      </>
+                    )}
+                  </div>
                 </div>
                 <div className="space-y-3">
-                  {filtered.filter((task) => task.status === column).map((task) => (
+                  {filtered.filter((task) => taskColumnId(task) === column.id).map((task) => (
                     <TaskCard
                       key={task.id}
                       task={task}
                       propertyName={properties.find((item) => item.id === task.propertyId)?.name ?? "-"}
                       onEdit={() => { setEditing(task); setOpen(true); }}
                       onRemove={() => { removeTask(task.id); toast("Tarefa removida"); }}
+                      onDragStart={(event) => {
+                        event.stopPropagation();
+                        event.dataTransfer.effectAllowed = "move";
+                        setDraggingColumnId(null);
+                        setDraggingTaskId(task.id);
+                      }}
+                      onDragEnd={() => setDraggingTaskId(null)}
                     />
                   ))}
                 </div>
@@ -186,7 +254,7 @@ export default function TarefasPage() {
                     <td className="px-4 py-3">{task.assignee}</td>
                     <td className="px-4 py-3">{TASK_SECTOR_LABEL[task.sector]}</td>
                     <td className="px-4 py-3 text-muted-foreground">{fmtDate(task.dueDate)}</td>
-                    <td className="px-4 py-3"><Badge variant="secondary">{TASK_STATUS_LABEL[task.status]}</Badge></td>
+                    <td className="px-4 py-3"><Badge variant="secondary">{taskColumnTitle(task, taskColumns)}</Badge></td>
                     <td className="px-4 py-3 text-right">
                       <Button size="icon" variant="ghost" onClick={() => { setEditing(task); setOpen(true); }}>
                         <Pencil className="h-4 w-4" />
@@ -209,6 +277,7 @@ export default function TarefasPage() {
           <TaskForm initial={editing ?? emptyTask} properties={properties} onSave={save} />
         </DialogContent>
       </Dialog>
+      <ColumnDialog open={columnOpen} initial={editingColumn} onOpenChange={setColumnOpen} onSave={saveColumn} />
     </div>
   );
 }
@@ -218,18 +287,25 @@ function TaskCard({
   propertyName,
   onEdit,
   onRemove,
+  onDragStart,
+  onDragEnd,
 }: {
   task: FarmTask;
   propertyName: string;
   onEdit: () => void;
   onRemove: () => void;
+  onDragStart: (event: DragEvent<HTMLDivElement>) => void;
+  onDragEnd: () => void;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-3 shadow-card">
+    <div draggable onDragStart={onDragStart} onDragEnd={onDragEnd} className="cursor-grab rounded-xl border border-border bg-card p-3 shadow-card active:cursor-grabbing">
       <div className="flex items-start justify-between gap-2">
-        <div>
+        <div className="flex min-w-0 gap-2">
+          <GripVertical className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+          <div>
           <p className="text-sm font-semibold text-foreground">{task.title}</p>
           <p className="mt-1 text-xs text-muted-foreground">{task.description}</p>
+          </div>
         </div>
         <Badge className={cn("shrink-0 rounded-full text-[10px]", priorityTone[task.priority])}>{task.priority}</Badge>
       </div>
@@ -287,7 +363,7 @@ function TaskForm({
         </div>
         <div>
           <Label>Status</Label>
-          <Select value={form.status} onValueChange={(value) => setForm({ ...form, status: value as TaskStatus })}>
+          <Select value={form.status} onValueChange={(value) => setForm({ ...form, status: value as TaskStatus, columnId: undefined })}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               {Object.entries(TASK_STATUS_LABEL).map(([key, label]) => <SelectItem key={key} value={key}>{label}</SelectItem>)}
@@ -316,5 +392,35 @@ function TaskForm({
       </div>
       <DialogFooter><Button type="submit" className="w-full">Salvar tarefa</Button></DialogFooter>
     </form>
+  );
+}
+
+function ColumnDialog({
+  open,
+  initial,
+  onOpenChange,
+  onSave,
+}: {
+  open: boolean;
+  initial: TaskColumn | null;
+  onOpenChange: (open: boolean) => void;
+  onSave: (title: string) => void;
+}) {
+  const [title, setTitle] = useState("");
+
+  useEffect(() => {
+    if (open) setTitle(initial?.title ?? "");
+  }, [initial, open]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader><DialogTitle>{initial ? "Renomear coluna" : "Nova coluna"}</DialogTitle></DialogHeader>
+        <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); onSave(title.trim()); }}>
+          <div><Label>Nome</Label><Input value={title} onChange={(event) => setTitle(event.target.value)} required /></div>
+          <DialogFooter><Button type="submit">Salvar coluna</Button></DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
