@@ -135,6 +135,16 @@ export default function EstoquePage() {
                   <span className="text-muted-foreground">Mínimo</span><span>{fmtNum(item.minQuantity)} {item.unit}</span>
                   <span className="text-muted-foreground">Valor</span><span>{fmtBRL(item.quantity * item.unitCost)}</span>
                 </div>
+                <div className="mt-3 flex gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => { setEditing(item); setOpen(true); }}>
+                    <Pencil className="mr-1 h-4 w-4" /> Editar
+                  </Button>
+                  <ConfirmAction description="O item será removido permanentemente do estoque." onConfirm={() => { removeStockItem(item.id); toast("Item removido"); }}>
+                    <Button size="sm" variant="ghost" className="text-danger">
+                      <Trash2 className="mr-1 h-4 w-4" /> Remover
+                    </Button>
+                  </ConfirmAction>
+                </div>
               </div>
             );
           })}
